@@ -1,0 +1,40 @@
+name: Helm
+
+on:
+  push:
+    branches: [main]
+    paths: ["charts/**"]
+  pull_request:
+    paths: ["charts/**"]
+
+concurrency:
+  group: helm-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  helm-lint:
+    name: Helm Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v5
+        with:
+          version: "3.17.0"
+      - run: helm lint charts/aobp --strict
+
+  helm-unittest:
+    name: Helm Unit Tests
+    needs: [helm-lint]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v5
+        with:
+          version: "3.17.0"
+      - name: Install helm-unittest plugin
+        run: helm plugin install https://github.com/helm-unittest/helm-unittest --version v0.6.2
+      - name: Run helm unit tests
+        run: helm unittest charts/aobp

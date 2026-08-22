@@ -1,0 +1,16 @@
+# aobp
+
+Helm chart for [`aobp`](https://github.com/zznathans/aobp).
+
+Deploys a FastAPI Deployment + Service, exposing `/` and `/health`. No
+chart-owned Ingress — the Service is meant to sit behind whatever
+externally-managed ingress/traffic routing your cluster already uses.
+
+{{ template "chart.valuesSection" . }}
+
+## Development
+
+```
+helm lint charts/aobp --strict
+helm unittest charts/aobp
+```
