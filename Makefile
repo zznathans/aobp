@@ -23,7 +23,7 @@ run:
 	uvicorn app.main:app --reload
 
 docker-build:
-	docker build -t python-app-template .
+	docker build -t aobp .
 
 docker-run:
 	docker compose up --build
