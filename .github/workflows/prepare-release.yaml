@@ -1,0 +1,85 @@
+name: Prepare Release
+
+# Stage 1 of 2. main requires every change to go through a PR, so
+# semantic-release can't push its version-bump commit straight to main.
+# Split into two stages instead (same pattern as aodb-api-helm/bebot-helm):
+#
+#   1. (this workflow) Computes the next version via a dry-run
+#      semantic-release (no push, no release), bumps
+#      charts/aobp/Chart.yaml + values.yaml + pyproject.toml, and opens a
+#      normal PR for it.
+#   2. cut-release.yaml fires once that PR is merged and actually creates
+#      the version tag + GitHub Release (via the GitHub API, not a git
+#      push - so the branch ruleset never applies to it) from that
+#      already-correct commit.
+#
+# docker-publish.yml and chart-publish.yml (unchanged) publish once
+# cut-release.yaml's GitHub Release fires.
+#
+# Both this workflow and cut-release.yaml fire off the same
+# CI-success-on-main signal, so this one explicitly skips a release-bump
+# merge itself (message starts with "chore(release):", or contains
+# "/release/" for the default merge-commit message style) and leaves that
+# to cut-release.yaml - otherwise the two would race on the same commit.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Compute next version and open a bump PR
+    runs-on: ubuntu-latest
+    if: |
+      github.event.workflow_run.conclusion == 'success' &&
+      !contains(github.event.workflow_run.head_commit.message, '[skip ci]') &&
+      !startsWith(github.event.workflow_run.head_commit.message, 'chore(release):') &&
+      !contains(github.event.workflow_run.head_commit.message, '/release/')
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: main
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - name: Compute next version (dry run - no push, no release)
+        id: semantic
+        uses: cycjimmy/semantic-release-action@v4
+        with:
+          semantic_version: 24
+          dry_run: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT }}
+
+      - name: Bump chart/pyproject versions and open a PR
+        if: steps.semantic.outputs.new_release_published == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          VERSION: ${{ steps.semantic.outputs.new_release_version }}
+        run: |
+          branch="release/${VERSION}"
+
+          # Idempotent: if a prepare run already opened this branch/PR, don't try again.
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            echo "Branch $branch already exists, assuming a prepare PR is already open."
+            exit 0
+          fi
+
+          sh scripts/bump-version.sh "$VERSION"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add charts/aobp/Chart.yaml charts/aobp/values.yaml pyproject.toml
+          git commit -m "chore(release): ${VERSION}"
+          git push origin "$branch"
+
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "chore(release): ${VERSION}" \
+            --body "Bumps charts/aobp/Chart.yaml, charts/aobp/values.yaml, and pyproject.toml to ${VERSION} ahead of cutting that release."
