@@ -1,0 +1,50 @@
+name: Release
+
+# Computes the next version from Conventional Commits on main and creates
+# the matching Git tag + GitHub Release via the API - no version-bump
+# commit, so this never pushes to main and the pull_request-required
+# ruleset never comes into play (tags aren't covered by it anyway).
+#
+# That published Release is what triggers docker-publish.yml (image) and
+# chart-publish.yml (chart, versioned straight from the release tag) - see
+# the README's Releasing section.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Run semantic-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      # Mints a short-lived installation token instead of using the default
+      # GITHUB_TOKEN: a release created with the default token never fires
+      # other workflows' release:published listeners (GitHub's
+      # anti-recursion rule) - which is exactly what
+      # docker-publish.yml/chart-publish.yml wait for. See
+      # https://github.com/semantic-release/semantic-release/discussions/1906.
+      - name: Generate a token for the release App
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          token: ${{ steps.app-token.outputs.token }}
+
+      - uses: cycjimmy/semantic-release-action@v4
+        with:
+          semantic_version: 24
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
