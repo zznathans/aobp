@@ -10,10 +10,11 @@ Optionally (`mongodb.enabled`) also deploys a `MongoDBCommunity` custom
 resource — a MongoDB replica set. This requires the
 [MongoDB Community Kubernetes Operator](https://github.com/mongodb/mongodb-kubernetes-operator)
 already installed in the cluster; this chart only creates the CR, not the
-operator itself. The referenced `mongodb.passwordSecretName` Secret (a
-`password` key) must already exist — this chart doesn't create it, so that
-the password can come from wherever you already manage secrets (e.g.
-External Secrets, or `kubectl create secret generic ... --from-literal=password=...`).
+operator itself. The user's password comes from a Secret (a `password` key):
+set `mongodb.passwordSecretName` to point at one you already manage (e.g.
+External Secrets, or `kubectl create secret generic ... --from-literal=password=...`),
+or leave it empty and the chart generates and manages one itself — a random
+password, generated once and kept stable across upgrades.
 
 ## Values
 
@@ -29,7 +30,7 @@ External Secrets, or `kubectl create secret generic ... --from-literal=password=
 | mongodb.database | string | `"aobp"` | Database the user is scoped to, via a readWrite role. |
 | mongodb.enabled | bool | `false` | Deploy a MongoDBCommunity custom resource for this release. Requires the MongoDB Community Kubernetes Operator (https://github.com/mongodb/mongodb-kubernetes-operator) already installed in the cluster - this chart only creates the CR, not the operator itself. |
 | mongodb.members | int | `3` | Number of replica set members. |
-| mongodb.passwordSecretName | string | `""` | Name of an existing Secret (not created by this chart) holding the user's password under a `password` key - e.g. via External Secrets, or `kubectl create secret generic <name> --from-literal=password=...`. Required when mongodb.enabled is true. |
+| mongodb.passwordSecretName | string | `""` | Name of an existing Secret holding the user's password under a `password` key - e.g. via External Secrets, or `kubectl create secret generic <name> --from-literal=password=...`. Leave empty to have the chart generate and manage a random password itself, in a Secret named "<release-name>-mongodb-password" - generated once and kept stable across upgrades (reuses the existing Secret's password if there is one). |
 | mongodb.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}` | Resource requests and limits for the mongod container. |
 | mongodb.storage | string | `"10Gi"` | Storage requested per member's PersistentVolumeClaim. |
 | mongodb.username | string | `"aobp"` | Database user the operator creates. |

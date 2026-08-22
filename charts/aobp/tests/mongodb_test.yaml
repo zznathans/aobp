@@ -22,12 +22,34 @@ tests:
           path: spec.members
           value: 3
 
-  - it: fails when enabled without passwordSecretName
+  - it: generates a password Secret when passwordSecretName isn't set
     set:
       mongodb.enabled: true
     asserts:
-      - failedTemplate:
-          errorMessage: "mongodb.passwordSecretName is required when mongodb.enabled is true"
+      - hasDocuments:
+          count: 2
+      - documentIndex: 0
+        isKind:
+          of: Secret
+      - documentIndex: 0
+        equal:
+          path: metadata.name
+          value: RELEASE-NAME-mongodb-password
+      - documentIndex: 0
+        isNotEmpty:
+          path: data.password
+      - documentIndex: 1
+        equal:
+          path: spec.users[0].passwordSecretRef.name
+          value: RELEASE-NAME-mongodb-password
+
+  - it: does not generate a Secret when passwordSecretName is set explicitly
+    set:
+      mongodb.enabled: true
+      mongodb.passwordSecretName: aobp-mongodb-password
+    asserts:
+      - hasDocuments:
+          count: 1
 
   - it: scopes the user to the configured database with readWrite
     set:
