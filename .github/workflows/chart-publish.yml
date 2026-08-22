@@ -1,0 +1,64 @@
+name: Chart Publish
+
+# Triggered by a published GitHub Release, same as docker-publish.yml, so
+# the chart version and image tag are cut together. Two independent publish
+# paths - either failing doesn't block the other:
+#   - publish-oci: packages the chart and pushes it as an OCI artifact to
+#     GHCR (ghcr.io/zznathans/aobp/charts) - `helm install oci://...`.
+#   - publish-gh-pages: packages the chart and updates gh-pages' index.yaml,
+#     a classic Helm chart repo (`helm repo add https://zznathans.github.io/aobp`)
+#     for tooling that doesn't speak OCI registries yet.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish-oci:
+    name: Publish (OCI)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: azure/setup-helm@v5
+        with:
+          version: "3.17.0"
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Package and push chart
+        run: |
+          set -euo pipefail
+          helm package charts/aobp -d /tmp/chart-out
+          helm push /tmp/chart-out/aobp-*.tgz oci://ghcr.io/zznathans/aobp/charts
+
+  publish-gh-pages:
+    name: Publish (gh-pages)
+    runs-on: ubuntu-latest
+    concurrency:
+      group: gh-pages-publish
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@v1.7.0
+        with:
+          charts_dir: charts
+          # A release retriggers this for a chart version that may already
+          # have been published by a prior run - no-op instead of failing.
+          skip_existing: true
+        env:
+          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
