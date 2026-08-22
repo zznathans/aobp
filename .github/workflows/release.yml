@@ -11,6 +11,11 @@ name: Release
 on:
   push:
     branches: [main]
+  # Lets a release be re-triggered by hand without needing an empty commit -
+  # useful if a past push's commit(s) lacked a Conventional Commits prefix
+  # and so didn't register with commit-analyzer (it re-scans everything
+  # since the last tag, so a later run still picks those changes up).
+  workflow_dispatch:
 
 permissions:
   contents: read
