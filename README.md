@@ -12,6 +12,7 @@ type-checking, and GitHub Actions CI/CD already wired up.
 | Helm | [![Helm](https://github.com/zznathans/aobp/actions/workflows/helm.yml/badge.svg)](https://github.com/zznathans/aobp/actions/workflows/helm.yml) |
 | Docker Publish | [![Docker Publish](https://github.com/zznathans/aobp/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/zznathans/aobp/actions/workflows/docker-publish.yml) |
 | Chart Publish | [![Chart Publish](https://github.com/zznathans/aobp/actions/workflows/chart-publish.yml/badge.svg)](https://github.com/zznathans/aobp/actions/workflows/chart-publish.yml) |
+| Release | [![Release](https://img.shields.io/github/v/release/zznathans/aobp)](https://github.com/zznathans/aobp/releases) |
 
 ## What's included
 
@@ -28,8 +29,8 @@ type-checking, and GitHub Actions CI/CD already wired up.
 - **Dependabot**: keeps pip, Docker base image, and GitHub Actions up to date
 - **Helm chart**: `charts/aobp/` — deploys the app to Kubernetes (see [Deploying](#deploying))
 - **Release publishing**: `docker-publish.yml` (image to GHCR) and `chart-publish.yml`
-  (chart to GHCR as OCI and to `gh-pages`) both run on a published GitHub Release
-  (see [Releasing](#releasing))
+  (chart to GHCR as an OCI artifact) both run on a published GitHub Release — cutting
+  a release is the only step (see [Releasing](#releasing))
 
 ## Getting started
 
@@ -80,18 +81,19 @@ touches `charts/**`.
 
 ## Releasing
 
-Publishing an image and a chart version both happen on a published GitHub
-Release — bump `charts/aobp/Chart.yaml`'s `version`/`appVersion` and cut a
-release (tag it to match, e.g. `v0.2.0`):
+Cutting a [GitHub Release](https://github.com/zznathans/aobp/releases) (tag
+`X.Y.Z` or `vX.Y.Z`) is the only step — no version-bump commit or PR needed
+first:
 
-- `docker-publish.yml` builds and pushes `ghcr.io/zznathans/aobp` (tagged
-  from the release), with a build attestation.
-- `chart-publish.yml` publishes the chart two ways, independently:
-  - **OCI**: pushed to `oci://ghcr.io/zznathans/aobp/charts` —
-    `helm install aobp oci://ghcr.io/zznathans/aobp/charts/aobp --version <version>`
-  - **gh-pages**: a classic Helm chart repo via `helm/chart-releaser-action`
-    — `helm repo add aobp https://zznathans.github.io/aobp` (requires GitHub
-    Pages enabled on this repo, serving the `gh-pages` branch)
+- `docker-publish.yml` builds and pushes `ghcr.io/zznathans/aobp`, tagged to
+  match, with a build attestation.
+- `chart-publish.yml` packages `charts/aobp` with `--version`/`--app-version`
+  overridden from the release tag (not whatever's committed in `Chart.yaml`)
+  and pushes it as an OCI artifact to `oci://ghcr.io/zznathans/aobp/charts` —
+  `helm install aobp oci://ghcr.io/zznathans/aobp/charts/aobp --version X.Y.Z`.
+
+`Chart.yaml`'s committed `version`/`appVersion` only matter for local
+`helm lint`/`helm unittest` — they're not what gets published.
 
 ## Project layout
 
