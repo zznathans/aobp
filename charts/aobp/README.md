@@ -22,7 +22,7 @@ External Secrets, or `kubectl create secret generic ... --from-literal=password=
 | aobp.extraObjects | list | `[]` | Raw Kubernetes objects to render alongside chart-managed resources. |
 | aobp.imagePullSecrets | list | `[]` | List of image pull secret names to attach to the ServiceAccount. Leave empty if the registry is public. |
 | aobp.imageRepository | string | `"ghcr.io/zznathans/aobp"` | Container image registry and repository for the aobp image. |
-| aobp.imageTag | string | `"latest"` | Image tag to deploy. |
+| aobp.imageTag | string | `""` | Image tag to deploy. Empty by default: falls back to .Chart.AppVersion, which chart-publish.yml overrides to match the release a published chart was packaged from - so installing a published chart with no override deploys the matching image automatically. Only matters as a literal default for a raw checkout (falls back to Chart.yaml's committed appVersion) or local helm lint/unittest. |
 | aobp.replicaCount | int | `1` | Number of pod replicas. The app is stateless, so this is safe to scale up freely. |
 | aobp.resources | object | `{"limits":{"cpu":"250m","memory":"128Mi"},"requests":{"cpu":"50m","memory":"64Mi"}}` | Resource requests and limits for the app container. |
 | aobp.service.port | int | `80` | Port the Service listens on and forwards to the container's 8000. |

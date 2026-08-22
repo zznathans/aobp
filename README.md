@@ -73,9 +73,7 @@ for values and usage. Quick start:
 ```bash
 helm lint charts/aobp --strict
 helm unittest charts/aobp
-helm install aobp charts/aobp \
-  --set aobp.imageRepository=ghcr.io/zznathans/aobp \
-  --set aobp.imageTag=latest
+helm install aobp oci://ghcr.io/zznathans/aobp/charts/aobp --version X.Y.Z
 ```
 
 It deploys a Deployment + Service exposing `/` and `/health` — no chart-owned
@@ -110,7 +108,10 @@ with a [Conventional Commits](https://www.conventionalcommits.org/) message
      `helm install aobp oci://ghcr.io/zznathans/aobp/charts/aobp --version X.Y.Z`.
 
 `Chart.yaml`'s committed `version`/`appVersion` only matter for local
-`helm lint`/`helm unittest` — they're not what gets published.
+`helm lint`/`helm unittest` — they're not what gets published. `aobp.imageTag`
+defaults to `.Chart.AppVersion` (see `charts/aobp/README.md`), so installing
+the published chart with no overrides deploys the image tag matching that
+release automatically.
 
 `release.yml` authenticates as a GitHub App installation token rather than
 the default `GITHUB_TOKEN`: a release created with the default token never

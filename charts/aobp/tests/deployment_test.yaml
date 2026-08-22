@@ -15,6 +15,14 @@ tests:
           path: spec.template.spec.containers[0].image
           value: ghcr.io/zznathans/aobp:1.2.3
 
+  - it: falls back to the chart's appVersion when imageTag isn't set
+    set:
+      aobp.imageRepository: ghcr.io/zznathans/aobp
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/zznathans/aobp:0.1.0
+
   - it: defaults to a single replica
     asserts:
       - equal:
