@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install dev dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Black
+        run: black --check .
+
+      - name: Mypy
+        run: mypy app
+
+  test:
+    runs-on: ubuntu-latest
+    # pull-requests: write is for the Coveralls step below (it posts a PR
+    # comment with the coverage diff) - everything else in this job needs
+    # no elevated permissions.
+    permissions:
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dev dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Run tests
+        run: pytest --cov-report=lcov:coverage.lcov
+
+      # Informational only - not a required status check, so a coverage
+      # regression never blocks merging. Only reported once (on the
+      # newest Python version) since Coveralls doesn't need every
+      # matrix leg's report. continue-on-error because the action's own
+      # default (fail-on-error: true) means a Coveralls-side outage -
+      # not our data - would otherwise fail this job.
+      - name: Coveralls
+        if: matrix.python-version == '3.14'
+        continue-on-error: true
+        uses: coverallsapp/github-action@v2
+        with:
+          file: coverage.lcov

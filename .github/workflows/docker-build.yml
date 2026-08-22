@@ -1,0 +1,30 @@
+name: Docker
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: docker-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          tags: python-app-template:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

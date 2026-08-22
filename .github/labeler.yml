@@ -1,0 +1,30 @@
+app:
+  - changed-files:
+      - any-glob-to-any-file: "app/**"
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file: "tests/**"
+
+docker:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "Dockerfile"
+          - "docker-compose.yml"
+          - ".dockerignore"
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file: ".github/**"
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pyproject.toml"
+          - "requirements*.txt"
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.md"
+          - "LICENSE"
