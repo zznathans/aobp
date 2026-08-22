@@ -16,7 +16,7 @@ spec:
       serviceAccountName: {{ .Release.Name }}-serviceaccount
       containers:
         - name: {{ .Release.Name }}
-          image: {{ .Values.aobp.imageRepository }}:{{ .Values.aobp.imageTag }}
+          image: {{ .Values.aobp.imageRepository }}:{{ .Values.aobp.imageTag | default .Chart.AppVersion }}
           ports:
             - containerPort: 8000
           securityContext:

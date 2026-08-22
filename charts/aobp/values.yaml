@@ -5,8 +5,13 @@ aobp:
 
   # -- Container image registry and repository for the aobp image.
   imageRepository: ghcr.io/zznathans/aobp
-  # -- Image tag to deploy.
-  imageTag: "latest"
+  # -- Image tag to deploy. Empty by default: falls back to .Chart.AppVersion,
+  # which chart-publish.yml overrides to match the release a published chart
+  # was packaged from - so installing a published chart with no override
+  # deploys the matching image automatically. Only matters as a literal
+  # default for a raw checkout (falls back to Chart.yaml's committed
+  # appVersion) or local helm lint/unittest.
+  imageTag: ""
   # -- List of image pull secret names to attach to the ServiceAccount. Leave empty if the registry is public.
   imagePullSecrets: []
 
