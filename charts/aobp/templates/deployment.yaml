@@ -13,7 +13,7 @@ spec:
       labels:
         app: {{ .Release.Name }}
     spec:
-      serviceAccount: {{ .Release.Name }}-serviceaccount
+      serviceAccountName: {{ .Release.Name }}-serviceaccount
       containers:
         - name: {{ .Release.Name }}
           image: {{ .Values.aobp.imageRepository }}:{{ .Values.aobp.imageTag }}
