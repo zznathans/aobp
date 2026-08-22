@@ -1,0 +1,65 @@
+suite: mongodb
+templates:
+  - mongodb.yaml
+tests:
+  - it: renders nothing when disabled (the default)
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders a MongoDBCommunity CR when enabled
+    set:
+      mongodb.enabled: true
+      mongodb.passwordSecretName: aobp-mongodb-password
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isAPIVersion:
+          of: mongodbcommunity.mongodb.com/v1
+      - isKind:
+          of: MongoDBCommunity
+      - equal:
+          path: spec.members
+          value: 3
+
+  - it: fails when enabled without passwordSecretName
+    set:
+      mongodb.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "mongodb.passwordSecretName is required when mongodb.enabled is true"
+
+  - it: scopes the user to the configured database with readWrite
+    set:
+      mongodb.enabled: true
+      mongodb.passwordSecretName: aobp-mongodb-password
+      mongodb.username: someuser
+      mongodb.database: somedb
+    asserts:
+      - equal:
+          path: spec.users[0].name
+          value: someuser
+      - equal:
+          path: spec.users[0].roles[0]
+          value:
+            name: readWrite
+            db: somedb
+
+  - it: passes the password secret name through
+    set:
+      mongodb.enabled: true
+      mongodb.passwordSecretName: aobp-mongodb-password
+    asserts:
+      - equal:
+          path: spec.users[0].passwordSecretRef.name
+          value: aobp-mongodb-password
+
+  - it: requests storage per member via the volume claim template
+    set:
+      mongodb.enabled: true
+      mongodb.passwordSecretName: aobp-mongodb-password
+      mongodb.storage: 20Gi
+    asserts:
+      - equal:
+          path: spec.statefulSet.spec.volumeClaimTemplates[0].spec.resources.requests.storage
+          value: 20Gi
