@@ -28,9 +28,11 @@ type-checking, and GitHub Actions CI/CD already wired up.
 - **PR labeler**: `.github/workflows/labeler.yml` + `.github/labeler.yml` — labels PRs by changed path
 - **Dependabot**: keeps pip, Docker base image, and GitHub Actions up to date
 - **Helm chart**: `charts/aobp/` — deploys the app to Kubernetes (see [Deploying](#deploying))
+- **Automated releases**: `release.yml` — semantic-release, driven by Conventional
+  Commits on `main`; no manual tagging (see [Releasing](#releasing))
 - **Release publishing**: `docker-publish.yml` (image to GHCR) and `chart-publish.yml`
-  (chart to GHCR as an OCI artifact) both run on a published GitHub Release — cutting
-  a release is the only step (see [Releasing](#releasing))
+  (chart to GHCR as an OCI artifact) both run on the GitHub Release semantic-release
+  creates (see [Releasing](#releasing))
 
 ## Getting started
 
@@ -57,9 +59,10 @@ The app listens on port 8000. Try `curl http://localhost:8000/health`.
   (informational only — a coverage drop never fails the build).
 - Every push/PR also builds the Docker image via `docker-build.yml` to make sure it
   still builds — it does not push anywhere.
-- Publishing an image and a chart version both happen on a published GitHub
-  Release (see [Releasing](#releasing)) — nothing is pushed to a registry on
-  an ordinary push to `main`.
+- Every push to `main` also runs `release.yml`, which cuts a new version if
+  the commits since the last release warrant one (see [Releasing](#releasing)).
+  Publishing an image and a chart version both happen on that GitHub Release —
+  nothing is pushed to a registry otherwise.
 
 ## Deploying
 
@@ -81,19 +84,32 @@ touches `charts/**`.
 
 ## Releasing
 
-Cutting a [GitHub Release](https://github.com/zznathans/aobp/releases) (tag
-`X.Y.Z` or `vX.Y.Z`) is the only step — no version-bump commit or PR needed
-first:
+Releases are cut automatically — nothing to do manually. Merge a PR to `main`
+with a [Conventional Commits](https://www.conventionalcommits.org/) message
+(`fix:` → patch, `feat:` → minor, `feat!:`/`BREAKING CHANGE:` → major) and
+`release.yml` handles the rest:
 
-- `docker-publish.yml` builds and pushes `ghcr.io/zznathans/aobp`, tagged to
-  match, with a build attestation.
-- `chart-publish.yml` packages `charts/aobp` with `--version`/`--app-version`
-  overridden from the release tag (not whatever's committed in `Chart.yaml`)
-  and pushes it as an OCI artifact to `oci://ghcr.io/zznathans/aobp/charts` —
-  `helm install aobp oci://ghcr.io/zznathans/aobp/charts/aobp --version X.Y.Z`.
+1. [semantic-release](https://semantic-release.gitbook.io/) computes the next
+   version from commits since the last release and, if one is warranted,
+   creates the `X.Y.Z` tag + GitHub Release directly via the GitHub API — no
+   version-bump commit, so this never pushes to `main`.
+2. That published Release is what triggers the actual publishing:
+   - `docker-publish.yml` builds and pushes `ghcr.io/zznathans/aobp:X.Y.Z`,
+     with a build attestation.
+   - `chart-publish.yml` packages `charts/aobp` with `--version`/`--app-version`
+     overridden from the release tag (not whatever's committed in `Chart.yaml`)
+     and pushes it as an OCI artifact to `oci://ghcr.io/zznathans/aobp/charts` —
+     `helm install aobp oci://ghcr.io/zznathans/aobp/charts/aobp --version X.Y.Z`.
 
 `Chart.yaml`'s committed `version`/`appVersion` only matter for local
 `helm lint`/`helm unittest` — they're not what gets published.
+
+`release.yml` authenticates as `secrets.RELEASE_PAT` rather than the default
+`GITHUB_TOKEN`: a release created with the default token never fires other
+workflows' `release: published` listeners (GitHub's anti-recursion rule),
+which is exactly what `docker-publish.yml`/`chart-publish.yml` are waiting
+for. **This repo needs a `RELEASE_PAT` secret** (Settings → Secrets and
+variables → Actions) — a token (classic or fine-grained) with `repo` scope.
 
 ## Project layout
 
