@@ -1,0 +1,27 @@
+aobp:
+  # -- Number of pod replicas. The app is stateless, so this is safe to scale
+  # up freely.
+  replicaCount: 1
+
+  # -- Container image registry and repository for the aobp image.
+  imageRepository: ghcr.io/zznathans/aobp
+  # -- Image tag to deploy.
+  imageTag: "latest"
+  # -- List of image pull secret names to attach to the ServiceAccount. Leave empty if the registry is public.
+  imagePullSecrets: []
+
+  # -- Resource requests and limits for the app container.
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+
+  service:
+    # -- Port the Service listens on and forwards to the container's 8000.
+    port: 80
+
+  # -- Raw Kubernetes objects to render alongside chart-managed resources.
+  extraObjects: []

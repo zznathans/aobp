@@ -1,0 +1,48 @@
+suite: deployment
+templates:
+  - deployment.yaml
+tests:
+  - it: renders a single deployment using the configured image
+    set:
+      aobp.imageRepository: ghcr.io/zznathans/aobp
+      aobp.imageTag: "1.2.3"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/zznathans/aobp:1.2.3
+
+  - it: defaults to a single replica
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 1
+
+  - it: scales up via replicaCount
+    set:
+      aobp.replicaCount: 3
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+
+  - it: probes the /health endpoint
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /health
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /health
+
+  - it: runs as a non-root user with hardened security context
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop[0]
+          value: ALL
