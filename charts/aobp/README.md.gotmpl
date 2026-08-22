@@ -10,10 +10,11 @@ Optionally (`mongodb.enabled`) also deploys a `MongoDBCommunity` custom
 resource — a MongoDB replica set. This requires the
 [MongoDB Community Kubernetes Operator](https://github.com/mongodb/mongodb-kubernetes-operator)
 already installed in the cluster; this chart only creates the CR, not the
-operator itself. The referenced `mongodb.passwordSecretName` Secret (a
-`password` key) must already exist — this chart doesn't create it, so that
-the password can come from wherever you already manage secrets (e.g.
-External Secrets, or `kubectl create secret generic ... --from-literal=password=...`).
+operator itself. The user's password comes from a Secret (a `password` key):
+set `mongodb.passwordSecretName` to point at one you already manage (e.g.
+External Secrets, or `kubectl create secret generic ... --from-literal=password=...`),
+or leave it empty and the chart generates and manages one itself — a random
+password, generated once and kept stable across upgrades.
 
 {{ template "chart.valuesSection" . }}
 

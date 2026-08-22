@@ -1,4 +1,23 @@
 {{- if .Values.mongodb.enabled }}
+{{- $secretName := .Values.mongodb.passwordSecretName | default (printf "%s-mongodb-password" .Release.Name) }}
+{{- if not .Values.mongodb.passwordSecretName }}
+{{- $existing := lookup "v1" "Secret" .Release.Namespace $secretName }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $secretName }}
+  namespace: {{ .Release.Namespace }}
+type: Opaque
+data:
+  # Generated once, then kept stable across upgrades by reusing whatever's
+  # already in the cluster - lookup returns an existing Secret's data if
+  # there is one, otherwise this generates a fresh password. lookup always
+  # comes back empty outside a real install/upgrade (e.g. helm
+  # template/lint), so those still render deterministically-shaped output,
+  # just with a different random password each time.
+  password: {{ if $existing }}{{ index $existing.data "password" }}{{ else }}{{ randAlphaNum 32 | b64enc }}{{ end }}
+---
+{{- end }}
 apiVersion: mongodbcommunity.mongodb.com/v1
 kind: MongoDBCommunity
 metadata:
@@ -15,7 +34,7 @@ spec:
     - name: {{ .Values.mongodb.username }}
       db: admin
       passwordSecretRef:
-        name: {{ required "mongodb.passwordSecretName is required when mongodb.enabled is true" .Values.mongodb.passwordSecretName }}
+        name: {{ $secretName }}
       roles:
         - name: readWrite
           db: {{ .Values.mongodb.database }}
