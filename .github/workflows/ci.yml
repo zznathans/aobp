@@ -37,10 +37,14 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    # Job-level permissions replace (not merge with) the workflow-level
+    # block above, so contents: read has to be repeated here too, or
+    # actions/checkout loses read access and fails with "not found".
     # pull-requests: write is for the Coveralls step below (it posts a PR
     # comment with the coverage diff) - everything else in this job needs
     # no elevated permissions.
     permissions:
+      contents: read
       pull-requests: write
     strategy:
       fail-fast: false
