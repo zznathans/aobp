@@ -1,0 +1,39 @@
+{{- if .Values.mongodb.enabled }}
+apiVersion: mongodbcommunity.mongodb.com/v1
+kind: MongoDBCommunity
+metadata:
+  name: {{ .Release.Name }}-mongodb
+  namespace: {{ .Release.Namespace }}
+spec:
+  members: {{ .Values.mongodb.members }}
+  type: ReplicaSet
+  version: {{ .Values.mongodb.version | quote }}
+  security:
+    authentication:
+      modes: ["SCRAM"]
+  users:
+    - name: {{ .Values.mongodb.username }}
+      db: admin
+      passwordSecretRef:
+        name: {{ required "mongodb.passwordSecretName is required when mongodb.enabled is true" .Values.mongodb.passwordSecretName }}
+      roles:
+        - name: readWrite
+          db: {{ .Values.mongodb.database }}
+      scramCredentialsSecretName: {{ .Release.Name }}-mongodb-scram
+  statefulSet:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: mongod
+              resources:
+                {{- toYaml .Values.mongodb.resources | nindent 16 }}
+      volumeClaimTemplates:
+        - metadata:
+            name: data-volume
+          spec:
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: {{ .Values.mongodb.storage }}
+{{- end }}

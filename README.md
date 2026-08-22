@@ -27,7 +27,8 @@ type-checking, and GitHub Actions CI/CD already wired up.
 - **Docker build check**: `.github/workflows/docker-build.yml` — builds the image (no push) on every push/PR to catch a broken `Dockerfile`
 - **PR labeler**: `.github/workflows/labeler.yml` + `.github/labeler.yml` — labels PRs by changed path
 - **Dependabot**: keeps pip, Docker base image, and GitHub Actions up to date
-- **Helm chart**: `charts/aobp/` — deploys the app to Kubernetes (see [Deploying](#deploying))
+- **Helm chart**: `charts/aobp/` — deploys the app to Kubernetes, optionally a MongoDB
+  replica set via the MongoDB Community Operator (see [Deploying](#deploying))
 - **Automated releases**: `release.yml` — semantic-release, driven by Conventional
   Commits on `main`; no manual tagging (see [Releasing](#releasing))
 - **Release publishing**: `docker-publish.yml` (image to GHCR) and `chart-publish.yml`
@@ -81,6 +82,13 @@ It deploys a Deployment + Service exposing `/` and `/health` — no chart-owned
 Ingress, so put it behind whatever ingress/traffic routing your cluster
 already uses. `helm.yml` lints and unit-tests the chart on every push/PR that
 touches `charts/**`.
+
+Optionally (`mongodb.enabled=true`) it also deploys a `MongoDBCommunity`
+custom resource — a MongoDB replica set — via the
+[MongoDB Community Kubernetes Operator](https://github.com/mongodb/mongodb-kubernetes-operator),
+which must already be installed in the cluster; this chart only creates the
+CR. Needs an existing Secret with the user's password
+(`mongodb.passwordSecretName`, key `password`) — not created by this chart.
 
 ## Releasing
 
