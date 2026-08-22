@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-app = FastAPI(title="python-app-template")
+app = FastAPI(title="aobp")
 
 
 @app.get("/")
