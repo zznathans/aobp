@@ -51,6 +51,10 @@ async def test_run_migrations_populates_raw_and_lookup_collections(tmp_path: Pat
     applied_ids = {doc["_id"] async for doc in db["_migrations"].find({}, {"_id": 1})}
     assert applied_ids == {
         "0001_import_raw_sde_tables",
+        "0001_import_raw_sde_tables:invTypes",
+        "0001_import_raw_sde_tables:industryActivity",
+        "0001_import_raw_sde_tables:industryActivityMaterials",
+        "0001_import_raw_sde_tables:industryActivityProducts",
         "0002_build_sde_lookup_collections",
     }
 
@@ -76,7 +80,7 @@ async def test_run_migrations_is_idempotent(tmp_path: Path) -> None:
     await run_migrations(db, settings)
     await run_migrations(db, settings)
 
-    assert await db["_migrations"].count_documents({}) == 2
+    assert await db["_migrations"].count_documents({}) == 6
     assert await db["sde_blueprints"].count_documents({}) == 1
 
 
@@ -98,10 +102,63 @@ async def test_failed_migration_is_not_recorded_and_retries(
         await run_migrations(db, settings)
 
     applied_ids = {doc["_id"] async for doc in db["_migrations"].find({}, {"_id": 1})}
-    assert applied_ids == {"0001_import_raw_sde_tables"}
+    assert applied_ids == {
+        "0001_import_raw_sde_tables",
+        "0001_import_raw_sde_tables:invTypes",
+        "0001_import_raw_sde_tables:industryActivity",
+        "0001_import_raw_sde_tables:industryActivityMaterials",
+        "0001_import_raw_sde_tables:industryActivityProducts",
+    }
 
     monkeypatch.undo()
     await run_migrations(db, settings)
 
     applied_ids = {doc["_id"] async for doc in db["_migrations"].find({}, {"_id": 1})}
     assert "0002_build_sde_lookup_collections" in applied_ids
+
+
+async def test_import_raw_sde_tables_resumes_after_partial_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_fixtures(tmp_path)
+    db = AsyncMongoMockClient()["test"]
+    settings = _settings(tmp_path)
+
+    import_module = importlib.import_module("app.migrations.0001_import_raw_sde_tables")
+    real_import_table = import_module._import_table
+
+    async def _flaky_import_table(db: object, path: Path) -> None:
+        # Sorted glob order runs the "industryActivity*" tables before
+        # "invTypes" alphabetically, so failing on invTypes leaves partial
+        # progress from the earlier tables to assert on.
+        if path.name.removesuffix(".json.gz") == "invTypes":
+            raise RuntimeError("boom")
+        await real_import_table(db, path)
+
+    monkeypatch.setattr(import_module, "_import_table", _flaky_import_table)
+
+    with pytest.raises(RuntimeError):
+        await run_migrations(db, settings)
+
+    applied_ids = {doc["_id"] async for doc in db["_migrations"].find({}, {"_id": 1})}
+    assert applied_ids == {
+        "0001_import_raw_sde_tables:industryActivity",
+        "0001_import_raw_sde_tables:industryActivityMaterials",
+        "0001_import_raw_sde_tables:industryActivityProducts",
+    }
+    assert await db["industryActivityProducts"].count_documents({}) == 1
+    assert await db["invTypes"].count_documents({}) == 0
+
+    monkeypatch.undo()
+    await run_migrations(db, settings)
+
+    applied_ids = {doc["_id"] async for doc in db["_migrations"].find({}, {"_id": 1})}
+    assert applied_ids == {
+        "0001_import_raw_sde_tables",
+        "0001_import_raw_sde_tables:invTypes",
+        "0001_import_raw_sde_tables:industryActivity",
+        "0001_import_raw_sde_tables:industryActivityMaterials",
+        "0001_import_raw_sde_tables:industryActivityProducts",
+        "0002_build_sde_lookup_collections",
+    }
+    assert await db["invTypes"].count_documents({}) == 3
