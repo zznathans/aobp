@@ -14,7 +14,16 @@ operator itself. The user's password comes from a Secret (a `password` key):
 set `mongodb.passwordSecretName` to point at one you already manage (e.g.
 External Secrets, or `kubectl create secret generic ... --from-literal=password=...`),
 or leave it empty and the chart generates and manages one itself — a random
-password, generated once and kept stable across upgrades.
+password, generated once and kept stable across upgrades. When
+`mongodb.enabled` is false, the app instead connects using
+`mongodb.uri` (a plain connection string, e.g. for an external/managed
+MongoDB instance), or a Secret referenced via `mongodb.existingSecret`, or
+one synced by an optionally chart-deployed `ExternalSecret`
+(`mongodb.externalSecret.enabled`, requires the
+[External Secrets Operator](https://external-secrets.io) already installed
+in the cluster) - which pulls a JSON object with `db_host`, `db_port`,
+`db_user`, `db_password`, and `db_name` keys (the shape DigitalOcean Managed
+MongoDB writes) and assembles it into a connection string.
 
 Optionally (`redis.enabled`) also deploys a plain Redis Deployment + Service,
 used by the app as an optional cache to cut down on MongoDB reads for

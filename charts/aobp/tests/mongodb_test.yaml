@@ -76,6 +76,15 @@ tests:
           path: spec.users[0].passwordSecretRef.name
           value: aobp-mongodb-password
 
+  - it: names the connection string secret for the deployment to consume
+    set:
+      mongodb.enabled: true
+      mongodb.passwordSecretName: aobp-mongodb-password
+    asserts:
+      - equal:
+          path: spec.users[0].connectionStringSecretName
+          value: RELEASE-NAME-mongodb-connection
+
   - it: requests storage per member via the volume claim template
     set:
       mongodb.enabled: true

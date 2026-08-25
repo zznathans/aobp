@@ -54,3 +54,108 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].securityContext.capabilities.drop[0]
           value: ALL
+
+  - it: defaults MONGODB_URI to the plain uri value
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0]
+          value:
+            name: MONGODB_DATABASE
+            value: aobp
+      - equal:
+          path: spec.template.spec.containers[0].env[1]
+          value:
+            name: MONGODB_URI
+            value: mongodb://localhost:27017
+
+  - it: sources MONGODB_URI from the generated connection Secret when mongodb.enabled
+    set:
+      mongodb.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[1]
+          value:
+            name: MONGODB_URI
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-mongodb-connection
+                key: connectionString.standard
+
+  - it: sources MONGODB_URI from mongodb.existingSecret when set
+    set:
+      mongodb.existingSecret: my-mongo-secret
+      mongodb.existingSecretKey: connection-string
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[1]
+          value:
+            name: MONGODB_URI
+            valueFrom:
+              secretKeyRef:
+                name: my-mongo-secret
+                key: connection-string
+
+  - it: mongodb.enabled takes precedence over existingSecret
+    set:
+      mongodb.enabled: true
+      mongodb.existingSecret: my-mongo-secret
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[1]
+          value:
+            name: MONGODB_URI
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-mongodb-connection
+                key: connectionString.standard
+
+  - it: sources MONGODB_URI from the ExternalSecret's target Secret when mongodb.externalSecret.enabled
+    set:
+      mongodb.externalSecret.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[1]
+          value:
+            name: MONGODB_URI
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-mongodb-external
+                key: uri
+
+  - it: mongodb.enabled takes precedence over externalSecret.enabled
+    set:
+      mongodb.enabled: true
+      mongodb.externalSecret.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[1]
+          value:
+            name: MONGODB_URI
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-mongodb-connection
+                key: connectionString.standard
+
+  - it: externalSecret.enabled takes precedence over existingSecret
+    set:
+      mongodb.externalSecret.enabled: true
+      mongodb.existingSecret: my-mongo-secret
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[1]
+          value:
+            name: MONGODB_URI
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-mongodb-external
+                key: uri
+
+  - it: passes mongodb.database through to MONGODB_DATABASE
+    set:
+      mongodb.database: somedb
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0]
+          value:
+            name: MONGODB_DATABASE
+            value: somedb

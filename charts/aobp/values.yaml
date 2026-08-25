@@ -67,6 +67,45 @@ mongodb:
       cpu: 500m
       memory: 512Mi
 
+  # -- Plain MongoDB connection string for the app to use when `enabled` is
+  # false and `existingSecret` isn't set - e.g. an external/managed MongoDB
+  # instance outside the cluster. Ignored when `enabled` is true (the
+  # in-cluster MongoDBCommunity's own connection string is used instead).
+  uri: "mongodb://localhost:27017"
+  # -- Name of an existing Secret holding a MongoDB connection string, used
+  # instead of `uri` when set - e.g. via External Secrets. Ignored when
+  # `enabled` or `externalSecret.enabled` is true.
+  existingSecret: ""
+  # -- Key within `existingSecret` holding the connection string.
+  existingSecretKey: "uri"
+
+  externalSecret:
+    # -- Deploy an ExternalSecret (https://external-secrets.io) that syncs
+    # MongoDB connection details from an external secret store into a
+    # Secret this chart's Deployment then reads - an alternative to
+    # `existingSecret` when you'd rather have the chart manage the
+    # ExternalSecret object itself. Requires the External Secrets Operator
+    # already installed in the cluster. Ignored when `mongodb.enabled` is
+    # true; takes precedence over `existingSecret`/`uri` when set.
+    enabled: false
+    # -- Name of the (Cluster)SecretStore to pull from.
+    secretStoreRef: ""
+    # -- Kind of the store referenced above - SecretStore or
+    # ClusterSecretStore.
+    secretStoreKind: SecretStore
+    # -- Key/path within the external store holding the connection details.
+    # The remote secret is expected to be a JSON object with `db_host`,
+    # `db_port`, `db_user`, `db_password`, and `db_name` keys - the shape
+    # DigitalOcean Managed MongoDB writes - which are assembled into a
+    # connection string.
+    remoteKey: ""
+    # -- Query string appended to the assembled connection string (e.g.
+    # authSource, tls). Leave empty to omit. DigitalOcean Managed MongoDB
+    # requires TLS and an admin authSource.
+    uriOptions: "authSource=admin&tls=true"
+    # -- How often the ExternalSecret refreshes from the store.
+    refreshInterval: 1h
+
 redis:
   # -- Deploy a Redis instance for this release. The app uses it as an
   # optional read-through cache for reference data (SDE type/blueprint

@@ -39,6 +39,7 @@ spec:
         - name: readWrite
           db: {{ .Values.mongodb.database }}
       scramCredentialsSecretName: {{ .Release.Name }}-mongodb-scram
+      connectionStringSecretName: {{ .Release.Name }}-mongodb-connection
   statefulSet:
     spec:
       template:
