@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -10,21 +11,43 @@ from app.db.redis import create_redis_client
 from app.migrations.runner import run_migrations
 from app.routes import auth, blueprints, health, jobs
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger("aobp")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    logger.info("Starting up")
+
     settings = get_settings()
     app.state.settings = settings
+    logger.info("Loaded settings (mongodb_database=%s)", settings.mongodb_database)
+
     app.state.mongo_client = create_mongo_client(settings)
+    logger.info("MongoDB client created for database %r", settings.mongodb_database)
+
     app.state.redis = create_redis_client(settings)
+    if app.state.redis is not None:
+        logger.info("Redis client created (redis_url=%s)", settings.redis_url)
+    else:
+        logger.info("Redis disabled, skipping cache client")
+
     if settings.run_migrations_on_startup:
+        logger.info("Running database migrations")
         await run_migrations(app.state.mongo_client[settings.mongodb_database], settings)
+        logger.info("Database migrations complete")
+    else:
+        logger.info("Skipping database migrations (run_migrations_on_startup=False)")
+
+    logger.info("Startup complete")
     try:
         yield
     finally:
+        logger.info("Shutting down")
         app.state.mongo_client.close()
         if app.state.redis is not None:
             await app.state.redis.aclose()
+        logger.info("Shutdown complete")
 
 
 app = FastAPI(title="aobp", lifespan=lifespan)
