@@ -143,6 +143,7 @@ def render_nav(character: CharacterDocument | None) -> str:
     avatar_url = escape(
         f"https://images.evetech.net/characters/{character.character_id}/portrait?size=64"
     )
+    character_name = escape(character.character_name)
     return f"""
       <nav class="navbar">
         <a class="brand" href="/">aobp</a>
@@ -151,8 +152,8 @@ def render_nav(character: CharacterDocument | None) -> str:
           <a href="/blueprints">Blueprints</a>
         </div>
         <div class="nav-user">
-          <img class="nav-avatar" src="{avatar_url}" alt="{escape(character.character_name)}">
-          <span class="nav-user-name">{escape(character.character_name)}</span>
+          <img class="nav-avatar" src="{avatar_url}" alt="{character_name}">
+          <span class="nav-user-name">{character_name}</span>
           <a class="btn btn-secondary" href="/auth/logout">Log out</a>
         </div>
       </nav>
