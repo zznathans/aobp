@@ -16,6 +16,12 @@ External Secrets, or `kubectl create secret generic ... --from-literal=password=
 or leave it empty and the chart generates and manages one itself — a random
 password, generated once and kept stable across upgrades.
 
+Optionally (`redis.enabled`) also deploys a plain Redis Deployment + Service,
+used by the app as an optional cache to cut down on MongoDB reads for
+reference data. It's not a hard dependency of the app — nothing else in the
+cluster needs to know about it, and there's no persistence/PVC since it's
+purely a cache.
+
 ## Values
 
 | Key | Type | Default | Description |
@@ -35,6 +41,9 @@ password, generated once and kept stable across upgrades.
 | mongodb.storage | string | `"10Gi"` | Storage requested per member's PersistentVolumeClaim. |
 | mongodb.username | string | `"aobp"` | Database user the operator creates. |
 | mongodb.version | string | `"7.0.14"` | MongoDB server version to run. |
+| redis.enabled | bool | `false` | Deploy a Redis instance for this release. The app uses it as an optional read-through cache for reference data (SDE type/blueprint lookups, resolved location names) to cut down on MongoDB reads - it's not a hard dependency, the app falls back to querying MongoDB directly if Redis is disabled or unreachable. |
+| redis.resources | object | `{"limits":{"cpu":"100m","memory":"128Mi"},"requests":{"cpu":"25m","memory":"32Mi"}}` | Resource requests and limits for the redis container. |
+| redis.version | string | `"7.4-alpine"` | Redis image tag to run. |
 
 ## Development
 

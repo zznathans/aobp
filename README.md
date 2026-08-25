@@ -16,7 +16,19 @@ type-checking, and GitHub Actions CI/CD already wired up.
 
 ## What's included
 
-- **App**: minimal FastAPI app (`app/main.py`) with `/` and `/health` endpoints
+- **App**: FastAPI app (`app/main.py`) — a blueprint library for EVE Online, with a nav
+  bar (`app/web.py`) and a dashboard (`app/routes/health.py`) summarizing the logged-in
+  character's blueprints, assets, and running industry jobs
+- **Auth**: EVE Online SSO login (`app/routes/auth.py`, `app/services/eve_sso.py`) using
+  Authorization Code + PKCE, session cookies via Starlette's `SessionMiddleware`,
+  character/token persistence in MongoDB (`app/db/mongo.py`) — see
+  [Authentication](#authentication)
+- **Blueprint library**: browse the logged-in character's blueprints and see what's
+  buildable from their assets (`app/routes/blueprints.py`, `app/services/esi.py`) — see
+  [Blueprint data](#blueprint-data)
+- **Caching**: optional Redis-backed read-through cache for SDE lookups and location
+  names (`app/services/cache.py`, `app/db/redis.py`) — falls back to querying MongoDB
+  directly if Redis is disabled or unreachable
 - **Tests**: `pytest` + `pytest-cov` + FastAPI's `TestClient` (`tests/`)
 - **Linting/formatting**: `ruff` and `black`
 - **Type checking**: `mypy`
@@ -52,6 +64,13 @@ make docker-build     # docker build -t aobp .
 make docker-run       # docker compose up --build
 ```
 
+`docker-compose.yml` also starts `mongo` and `redis` containers the app connects to
+automatically (`MONGODB_URI`/`REDIS_ENABLED`/`REDIS_URL` are pinned for the `app`
+service). Copy `.env.example` to `.env` and fill in `EVE_SSO_CLIENT_ID`,
+`EVE_SSO_CALLBACK_URL`, and `SESSION_SECRET_KEY` before running — it's picked up
+automatically via `env_file` (everything except the Mongo/Redis connection settings
+above, which are fixed to the `mongo`/`redis` services).
+
 The app listens on port 8000. Try `curl http://localhost:8000/health`.
 
 ## CI/CD
@@ -64,6 +83,67 @@ The app listens on port 8000. Try `curl http://localhost:8000/health`.
   the commits since the last release warrant one (see [Releasing](#releasing)).
   Publishing an image and a chart version both happen on that GitHub Release —
   nothing is pushed to a registry otherwise.
+
+## Authentication
+
+Login uses [EVE Online SSO's Authorization Code + PKCE flow](https://developers.eveonline.com/docs/services/sso/#authorization-code-with-pkce):
+
+1. Register an application at [developers.eveonline.com/applications](https://developers.eveonline.com/applications)
+   with its callback URL matching `EVE_SSO_CALLBACK_URL` below.
+2. Copy `.env.example` to `.env` and fill in:
+   - `EVE_SSO_CLIENT_ID`, `EVE_SSO_CALLBACK_URL`, `EVE_SSO_SCOPES` (space-separated, may be empty)
+   - `MONGODB_URI`, `MONGODB_DATABASE` — where character/token data is persisted
+   - `SESSION_SECRET_KEY` — signs the session cookie; set to a long random value
+   - `REDIS_ENABLED`, `REDIS_URL` — optional cache, see [Caching](#caching)
+3. `GET /auth/login` starts the flow, `GET /auth/callback` completes it and sets a signed,
+   httponly session cookie. `GET /auth/me` returns the logged-in character's identity;
+   `GET /auth/logout` clears the session.
+
+The dashboard and blueprint library need `esi-characters.read_blueprints.v1`,
+`esi-assets.read_assets.v1`, `esi-industry.read_character_jobs.v1`, and
+`esi-universe.read_structures.v1` (resolves player-structure location names —
+without it those fall back to a raw `Location {id}` label) in `EVE_SSO_SCOPES`
+— all four must also be enabled on the application itself at
+developers.eveonline.com, or EVE SSO rejects the login with `invalid_scope`.
+
+## Blueprint data
+
+ESI doesn't expose blueprint manufacturing data (materials/products/time) — only CCP's
+Static Data Export (SDE) has it. A gzip-compressed JSON dump of every SDE table ships in
+the repo at `app/data/sde/` (one `<table>.json.gz` per table, generated from
+[Fuzzwork's SDE SQLite export](https://www.fuzzwork.co.uk/dump/latest-sqlite.db.gz)), so
+no manual download or import step is needed.
+
+On startup, `app/migrations/` imports it into MongoDB automatically:
+- `0001_import_raw_sde_tables` loads every `app/data/sde/*.json.gz` file verbatim into a
+  same-named Mongo collection (e.g. `invTypes`, `industryActivityMaterials`).
+- `0002_build_sde_lookup_collections` builds `sde_types` (type_id → name) and
+  `sde_blueprints` (blueprint type_id → manufacturing materials/products/time) from those
+  raw collections — this is what `app/routes/blueprints.py` actually queries.
+
+Applied migrations are tracked in a `_migrations` collection, so this only runs once —
+later startups skip straight past it. First startup against an empty database takes a
+while (millions of rows); subsequent ones are instant.
+
+To refresh the SDE data (e.g. after a new EVE expansion), regenerate the dumps and
+commit the result:
+
+```bash
+curl -L https://www.fuzzwork.co.uk/dump/latest-sqlite.db.gz | gunzip > sde.sqlite
+python -m app.scripts.dump_sde_json sde.sqlite
+```
+
+## Caching
+
+MongoDB is queried on every blueprint list/detail page load for reference data that
+rarely changes — `sde_types` (name lookups), `sde_blueprints` (materials/products), and
+resolved location names. Set `REDIS_ENABLED=true` (and `REDIS_URL`) to put a Redis
+read-through cache in front of those lookups (`app/services/cache.py`), cutting repeat
+Mongo reads down to whatever `REDIS_CACHE_TTL_SECONDS` allows (default 24h — this data
+only changes when the SDE migrations rerun or a location is looked up for the first
+time). It's entirely optional: if `REDIS_ENABLED` is false, or Redis is unreachable, the
+app just queries MongoDB directly — there's no hard dependency, and cache errors are
+swallowed rather than surfaced as request failures.
 
 ## Deploying
 
@@ -89,6 +169,10 @@ CR. The user's password comes from a Secret (`mongodb.passwordSecretName`,
 key `password`): point it at one you already manage, or leave it empty and
 the chart generates and manages one itself — a random password, generated
 once and kept stable across upgrades.
+
+Optionally (`redis.enabled=true`) it also deploys a plain Redis Deployment +
+Service, used by the app as an optional cache (see [Caching](#caching)) — not
+a hard dependency, no persistence/PVC since it's purely a cache.
 
 ## Releasing
 
@@ -129,6 +213,15 @@ secrets (Settings → Secrets and variables → Actions):
 
 ```
 app/            application code
+  core/         settings
+  data/sde/     gzipped JSON dumps of the EVE Static Data Export (committed)
+  db/           MongoDB + Redis connections
+  migrations/   Mongo migrations, run automatically on startup
+  models/       Mongo document models
+  routes/       route handlers (health, auth, blueprints)
+  scripts/      one-off dev scripts (regenerating app/data/sde/)
+  services/     EVE SSO client, ESI client, Redis cache helpers
+  web.py        shared dark-mode HTML page chrome
 tests/          tests
 charts/aobp/    Helm chart to deploy the app
 Dockerfile

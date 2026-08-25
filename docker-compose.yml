@@ -5,4 +5,30 @@ services:
       - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
+      - MONGODB_URI=mongodb://mongo:27017
+      - REDIS_ENABLED=true
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - path: .env
+        required: false
+    depends_on:
+      - mongo
+      - redis
     restart: unless-stopped
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+volumes:
+  mongo-data:

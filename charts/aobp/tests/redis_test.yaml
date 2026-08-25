@@ -1,0 +1,63 @@
+suite: redis
+templates:
+  - redis.yaml
+tests:
+  - it: renders nothing when disabled (the default)
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders a Deployment and Service when enabled
+    set:
+      redis.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 2
+      - documentIndex: 0
+        isKind:
+          of: Deployment
+      - documentIndex: 1
+        isKind:
+          of: Service
+
+  - it: uses the configured image version
+    set:
+      redis.enabled: true
+      redis.version: "7.2-alpine"
+    asserts:
+      - documentIndex: 0
+        equal:
+          path: spec.template.spec.containers[0].image
+          value: redis:7.2-alpine
+
+  - it: exposes port 6379
+    set:
+      redis.enabled: true
+    asserts:
+      - documentIndex: 1
+        equal:
+          path: spec.ports[0].port
+          value: 6379
+
+  - it: runs as a non-root user with hardened security context
+    set:
+      redis.enabled: true
+    asserts:
+      - documentIndex: 0
+        equal:
+          path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: true
+      - documentIndex: 0
+        equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop[0]
+          value: ALL
+
+  - it: applies configured resources
+    set:
+      redis.enabled: true
+      redis.resources.requests.memory: 64Mi
+    asserts:
+      - documentIndex: 0
+        equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: 64Mi

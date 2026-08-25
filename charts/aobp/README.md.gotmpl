@@ -16,6 +16,12 @@ External Secrets, or `kubectl create secret generic ... --from-literal=password=
 or leave it empty and the chart generates and manages one itself — a random
 password, generated once and kept stable across upgrades.
 
+Optionally (`redis.enabled`) also deploys a plain Redis Deployment + Service,
+used by the app as an optional cache to cut down on MongoDB reads for
+reference data. It's not a hard dependency of the app — nothing else in the
+cluster needs to know about it, and there's no persistence/PVC since it's
+purely a cache.
+
 {{ template "chart.valuesSection" . }}
 
 ## Development
