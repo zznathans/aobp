@@ -141,6 +141,7 @@ def render_nav(character: CharacterDocument | None) -> str:
         """
 
     avatar_url = f"https://images.evetech.net/characters/{character.character_id}/portrait?size=64"
+    character_name = escape(str(getattr(character, "character_name", "")))
     return f"""
       <nav class="navbar">
         <a class="brand" href="/">aobp</a>
