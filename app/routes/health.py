@@ -96,19 +96,25 @@ def _render_dashboard(
         location_label = escape(
             job_location_names.get(job.facility_id) or f"Location {job.facility_id}"
         )
+        job_href = escape(f"/jobs/{job.job_id}")
+        activity_name = escape(
+            industry.ACTIVITY_NAMES.get(job.activity_id, f"Activity {job.activity_id}")
+        )
+        end_date = escape(job.end_date)
+        job_icon_url = escape(icon_url(job.blueprint_type_id))
         return f"""
           <tr>
             <td>
-              <a class="job-bp" href="/jobs/{job.job_id}">
-                <img class="icon" src="{icon_url(job.blueprint_type_id)}" alt="{blueprint_name}">
+              <a class="job-bp" href="{job_href}">
+                <img class="icon" src="{job_icon_url}" alt="{blueprint_name}">
                 <span>{blueprint_name}</span>
               </a>
             </td>
-            <td>{industry.ACTIVITY_NAMES.get(job.activity_id, f"Activity {job.activity_id}")}</td>
+            <td>{activity_name}</td>
             <td>{location_label}</td>
             <td>{job.runs}</td>
             <td>{gauge_cell_html(industry.job_progress_percentage(job))}</td>
-            <td title="{job.end_date}">
+            <td title="{end_date}">
               {humanize_relative_time(datetime.fromisoformat(job.end_date))}
             </td>
           </tr>

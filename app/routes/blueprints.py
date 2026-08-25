@@ -164,7 +164,7 @@ def _sort_header(
         label += " &#9650;" if current_dir == "asc" else " &#9660;"
     else:
         next_dir = "asc"
-    href = f"?{_query_string(selected, column, next_dir, location)}"
+    href = escape(f"?{_query_string(selected, column, next_dir, location)}")
     return f'<th><a href="{href}">{label}</a></th>'
 
 
@@ -182,7 +182,8 @@ def _render_filters_form(
         </label>""" for option in _FILTER_OPTIONS)
 
     location_option_tags = "".join(
-        f'<option value="{loc_id}" {"selected" if str(loc_id) == location else ""}>'
+        f'<option value="{escape(str(loc_id))}" '
+        f'{"selected" if str(loc_id) == location else ""}>'
         f"{escape(loc_name)}</option>"
         for loc_id, loc_name in location_options
     )
@@ -190,8 +191,8 @@ def _render_filters_form(
     return f"""
       <form method="get" class="filters">
         <input type="hidden" name="f" value="1">
-        <input type="hidden" name="sort" value="{sort}">
-        <input type="hidden" name="dir" value="{direction}">
+        <input type="hidden" name="sort" value="{escape(sort)}">
+        <input type="hidden" name="dir" value="{escape(direction)}">
         {checkboxes_html}
         <select name="location" onchange="this.form.submit()">
           <option value="">All locations</option>
@@ -285,11 +286,12 @@ async def list_blueprints(
             location_names.get(resolved_location_id) or f"Location {resolved_location_id}"
         )
 
+        item_href = escape(f"/blueprints/{bp.item_id}")
         row_html = f"""
           <tr>
             <td>
-              <a class="bp-link" href="/blueprints/{bp.item_id}">
-                <img class="icon" src="{icon_url(bp.type_id, is_copy)}" alt="{name}">
+              <a class="bp-link" href="{item_href}">
+                <img class="icon" src="{escape(icon_url(bp.type_id, is_copy))}" alt="{name}">
                 <div><div class="name">{name}</div><div class="sub">{sub}</div></div>
               </a>
             </td>
@@ -395,10 +397,11 @@ async def blueprint_detail(
     type_docs = await sde.type_docs(db, redis, settings, {blueprint.type_id})
     blueprint_type_name = type_docs.get(blueprint.type_id, {}).get("name")
     blueprint_name = escape(str(blueprint_type_name or f"Type {blueprint.type_id}"))
+    blueprint_icon_url = escape(icon_url(blueprint.type_id, is_copy))
 
     header = f"""
       <div class="header">
-        <img class="icon" src="{icon_url(blueprint.type_id, is_copy)}" alt="{blueprint_name}">
+        <img class="icon" src="{blueprint_icon_url}" alt="{blueprint_name}">
         <div>
           <div class="name">{blueprint_name}</div>
           <div class="meta">ME {blueprint.material_efficiency} / TE {blueprint.time_efficiency}

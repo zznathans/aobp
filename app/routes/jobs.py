@@ -56,7 +56,12 @@ async def job_detail(
         str(type_docs.get(job.blueprint_type_id, {}).get("name", f"Type {job.blueprint_type_id}"))
     )
     location_label = escape(location_names.get(job.facility_id) or f"Location {job.facility_id}")
-    activity_name = industry.ACTIVITY_NAMES.get(job.activity_id, f"Activity {job.activity_id}")
+    activity_name = escape(
+        industry.ACTIVITY_NAMES.get(job.activity_id, f"Activity {job.activity_id}")
+    )
+    status_label = escape(job.status.capitalize())
+    start_date = escape(job.start_date)
+    end_date = escape(job.end_date)
 
     product_row = ""
     if job.product_type_id is not None:
@@ -67,10 +72,10 @@ async def job_detail(
 
     header = f"""
       <div class="header">
-        <img class="icon" src="{icon_url(job.blueprint_type_id)}" alt="{blueprint_name}">
+        <img class="icon" src="{escape(icon_url(job.blueprint_type_id))}" alt="{blueprint_name}">
         <div>
           <div class="name">{blueprint_name}</div>
-          <div class="meta">{activity_name} &middot; {job.status.capitalize()}</div>
+          <div class="meta">{activity_name} &middot; {status_label}</div>
         </div>
       </div>
     """
@@ -81,8 +86,8 @@ async def job_detail(
           <dt>Location</dt><dd>{location_label}</dd>
           <dt>Runs</dt><dd>{job.runs}</dd>
           <dt>Progress</dt><dd>{gauge_cell_html(industry.job_progress_percentage(job))}</dd>
-          <dt>Started</dt><dd>{job.start_date}</dd>
-          <dt>Ends</dt><dd>{job.end_date}</dd>
+          <dt>Started</dt><dd>{start_date}</dd>
+          <dt>Ends</dt><dd>{end_date}</dd>
           {product_row}
         </dl>
       </div>
