@@ -1,4 +1,5 @@
 import importlib
+import logging
 import pkgutil
 from datetime import UTC, datetime
 from typing import Protocol
@@ -7,6 +8,8 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 import app.migrations as migrations_package
 from app.core.config import Settings
+
+logger = logging.getLogger("aobp.migrations")
 
 
 class Migration(Protocol):
@@ -32,8 +35,11 @@ async def run_migrations(db: AsyncIOMotorDatabase, settings: Settings) -> None:
 
     for migration in _discover_migrations():
         if migration.MIGRATION_ID in applied_ids:
+            logger.info("Skipping already-applied migration %s", migration.MIGRATION_ID)
             continue
+        logger.info("Applying migration %s", migration.MIGRATION_ID)
         await migration.apply(db, settings)
         await db["_migrations"].insert_one(
             {"_id": migration.MIGRATION_ID, "applied_at": datetime.now(UTC).replace(tzinfo=None)}
         )
+        logger.info("Applied migration %s", migration.MIGRATION_ID)
