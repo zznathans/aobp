@@ -66,3 +66,23 @@ mongodb:
     limits:
       cpu: 500m
       memory: 512Mi
+
+redis:
+  # -- Deploy a Redis instance for this release. The app uses it as an
+  # optional read-through cache for reference data (SDE type/blueprint
+  # lookups, resolved location names) to cut down on MongoDB reads - it's
+  # not a hard dependency, the app falls back to querying MongoDB directly
+  # if Redis is disabled or unreachable.
+  enabled: false
+
+  # -- Redis image tag to run.
+  version: "7.4-alpine"
+
+  # -- Resource requests and limits for the redis container.
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
