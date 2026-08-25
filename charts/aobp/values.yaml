@@ -97,7 +97,10 @@ mongodb:
     # The remote secret is expected to be a JSON object with `db_host`,
     # `db_host_public`, `db_port`, `db_user`, `db_password`, and `db_name`
     # keys - the shape DigitalOcean Managed MongoDB writes - which are
-    # assembled into a connection string.
+    # assembled into a `mongodb+srv://` connection string (`db_port` is
+    # unused: DigitalOcean's managed MongoDB hosts only resolve via SRV/TXT
+    # records, not a plain A record, so the actual host:port pairs and
+    # replica set name come from DNS instead of being embedded in the URI).
     remoteKey: ""
     # -- Use `db_host_public` instead of `db_host` when assembling the
     # connection string - e.g. when the app isn't on the same VPC/network
