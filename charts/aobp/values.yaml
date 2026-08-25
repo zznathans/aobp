@@ -95,10 +95,14 @@ mongodb:
     secretStoreKind: SecretStore
     # -- Key/path within the external store holding the connection details.
     # The remote secret is expected to be a JSON object with `db_host`,
-    # `db_port`, `db_user`, `db_password`, and `db_name` keys - the shape
-    # DigitalOcean Managed MongoDB writes - which are assembled into a
-    # connection string.
+    # `db_host_public`, `db_port`, `db_user`, `db_password`, and `db_name`
+    # keys - the shape DigitalOcean Managed MongoDB writes - which are
+    # assembled into a connection string.
     remoteKey: ""
+    # -- Use `db_host_public` instead of `db_host` when assembling the
+    # connection string - e.g. when the app isn't on the same VPC/network
+    # as the database and can only reach it over its public endpoint.
+    usePublicHost: false
     # -- Query string appended to the assembled connection string (e.g.
     # authSource, tls). Leave empty to omit. DigitalOcean Managed MongoDB
     # requires TLS and an admin authSource.
