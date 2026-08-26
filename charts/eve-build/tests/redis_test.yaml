@@ -38,6 +38,53 @@ tests:
         equal:
           path: spec.ports[0].port
           value: 6379
+      - documentIndex: 1
+        equal:
+          path: spec.ports
+          value:
+            - name: redis
+              port: 6379
+              targetPort: 6379
+
+  - it: carries the app label for ServiceMonitor selection
+    set:
+      redis.enabled: true
+    asserts:
+      - documentIndex: 1
+        equal:
+          path: metadata.labels.app
+          value: RELEASE-NAME-redis
+
+  - it: does not render the exporter sidecar or metrics port by default
+    set:
+      redis.enabled: true
+    asserts:
+      - documentIndex: 0
+        lengthEqual:
+          path: spec.template.spec.containers
+          count: 1
+      - documentIndex: 1
+        lengthEqual:
+          path: spec.ports
+          count: 1
+
+  - it: renders the redis-exporter sidecar and metrics port when enabled
+    set:
+      redis.enabled: true
+      redis.exporter.enabled: true
+      redis.exporter.version: "v1.60.0"
+    asserts:
+      - documentIndex: 0
+        equal:
+          path: spec.template.spec.containers[1].image
+          value: oliver006/redis_exporter:v1.60.0
+      - documentIndex: 1
+        equal:
+          path: spec.ports[1]
+          value:
+            name: metrics
+            port: 9121
+            targetPort: metrics
 
   - it: runs as a non-root user with hardened security context
     set:

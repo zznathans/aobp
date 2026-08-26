@@ -248,3 +248,30 @@ redis:
   # -- How long cached SDE/location lookups are kept, in seconds. Only
   # relevant when Redis is enabled (bundled or external).
   cacheTtlSeconds: 86400
+
+  exporter:
+    # -- Deploy a redis_exporter sidecar alongside the bundled Redis instance,
+    # exposing Prometheus-compatible metrics at :9121/metrics. Only applies
+    # when `redis.enabled` is true (bundled Redis) - there's nothing to
+    # sidecar onto for an external Redis.
+    enabled: false
+    # -- redis_exporter image tag to run.
+    version: "v1.66.0"
+    # -- Resource requests and limits for the redis-exporter container.
+    resources:
+      requests:
+        cpu: 10m
+        memory: 16Mi
+      limits:
+        cpu: 50m
+        memory: 32Mi
+    serviceMonitor:
+      # -- Deploy a ServiceMonitor for Prometheus Operator to scrape the
+      # exporter automatically. Requires the Prometheus Operator CRDs
+      # already installed in the cluster, and `redis.exporter.enabled`.
+      enabled: false
+      # -- Scrape interval.
+      interval: 30s
+      # -- Extra labels on the ServiceMonitor (e.g. for a Prometheus
+      # instance's serviceMonitorSelector).
+      labels: {}

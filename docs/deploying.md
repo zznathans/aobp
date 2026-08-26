@@ -25,7 +25,9 @@ once and kept stable across upgrades.
 
 Optionally (`redis.enabled=true`) it also deploys a plain Redis Deployment +
 Service, used by the app as an optional cache (see [Caching](caching.md)) — not
-a hard dependency, no persistence/PVC since it's purely a cache.
+a hard dependency, no persistence/PVC since it's purely a cache. Setting
+`redis.exporter.enabled=true` adds a `redis_exporter` sidecar to that Redis pod,
+and `redis.exporter.serviceMonitor.enabled=true` deploys a `ServiceMonitor` for it.
 
 Optionally (`eveBuild.metrics.enabled=true`) the app exposes Prometheus-compatible
 metrics at `GET /metrics`. Setting `eveBuild.metrics.serviceMonitor.enabled=true` also

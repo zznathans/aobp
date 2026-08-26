@@ -30,7 +30,10 @@ used by the app as an optional cache to cut down on MongoDB reads for
 reference data. It's not a hard dependency of the app — nothing else in the
 cluster needs to know about it, and there's no persistence/PVC since it's
 purely a cache. Point the app at an external Redis instead via `redis.url`
-(leaving `redis.enabled` false).
+(leaving `redis.enabled` false). Optionally (`redis.exporter.enabled`) also
+runs a `redis_exporter` sidecar in the Redis pod, exposing Prometheus-compatible
+metrics; `redis.exporter.serviceMonitor.enabled` deploys a `ServiceMonitor` for
+it, same as the app's own (requires the Prometheus Operator CRDs).
 
 Optionally (`eveBuild.metrics.enabled`) the app exposes Prometheus-compatible
 metrics at `GET /metrics`. Optionally (`eveBuild.metrics.serviceMonitor.enabled`)
