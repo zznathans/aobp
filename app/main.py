@@ -1,3 +1,5 @@
+import asyncio
+import contextlib
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -11,6 +13,7 @@ from app.db.mongo import create_mongo_client
 from app.db.redis import create_redis_client
 from app.migrations.runner import run_migrations
 from app.routes import auth, blueprints, health, jobs, market_prices
+from app.services.db_gauges import refresh_db_gauges_periodically
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("eve-build")
@@ -40,11 +43,28 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     else:
         logger.info("Skipping database migrations (run_migrations_on_startup=False)")
 
+    db_gauges_task: asyncio.Task[None] | None = None
+    if settings.metrics_enabled and settings.metrics_db_gauges_enabled:
+        db_gauges_task = asyncio.create_task(
+            refresh_db_gauges_periodically(
+                app.state.mongo_client[settings.mongodb_database],
+                settings.metrics_gauge_refresh_seconds,
+            )
+        )
+        logger.info(
+            "Started DB-derived gauge refresh loop (interval=%ss)",
+            settings.metrics_gauge_refresh_seconds,
+        )
+
     logger.info("Startup complete")
     try:
         yield
     finally:
         logger.info("Shutting down")
+        if db_gauges_task is not None:
+            db_gauges_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await db_gauges_task
         app.state.mongo_client.close()
         if app.state.redis is not None:
             await app.state.redis.aclose()
