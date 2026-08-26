@@ -42,6 +42,19 @@ def _settings(data_dir: Path) -> Settings:
     return Settings(sde_data_dir=str(data_dir))
 
 
+async def test_import_raw_sde_tables_skips_tables_nothing_reads(tmp_path: Path) -> None:
+    _write_fixtures(tmp_path)
+    with gzip.open(tmp_path / "trnTranslations.json.gz", "wt", encoding="utf-8") as fh:
+        json.dump([{"unused": "data"}], fh)
+
+    db = AsyncMongoMockClient()["test"]
+    await run_migrations(db, _settings(tmp_path))
+
+    applied_ids = {doc["_id"] async for doc in db["_migrations"].find({}, {"_id": 1})}
+    assert "0001_import_raw_sde_tables:trnTranslations" not in applied_ids
+    assert await db["trnTranslations"].count_documents({}) == 0
+
+
 async def test_run_migrations_populates_raw_and_lookup_collections(tmp_path: Path) -> None:
     _write_fixtures(tmp_path)
     db = AsyncMongoMockClient()["test"]

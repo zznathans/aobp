@@ -13,6 +13,19 @@ MIGRATION_ID = "0001_import_raw_sde_tables"
 
 _BATCH_SIZE = 5000
 
+# The SDE ships ~180 raw tables, most totaling hundreds of MB uncompressed
+# (e.g. trnTranslations, mapDenormalize, mapCelestialStatistics) - only these
+# are ever read downstream (by 0002_build_sde_lookup_collections), so that's
+# all that gets imported.
+_REQUIRED_TABLES = frozenset(
+    {
+        "invTypes",
+        "industryActivity",
+        "industryActivityMaterials",
+        "industryActivityProducts",
+    }
+)
+
 logger = logging.getLogger("aobp.migrations")
 
 
@@ -35,7 +48,11 @@ async def _import_table(db: AsyncIOMotorDatabase, path: Path) -> None:
 
 async def apply(db: AsyncIOMotorDatabase, settings: Settings) -> None:
     data_dir = Path(settings.sde_data_dir)
-    paths = sorted(data_dir.glob("*.json.gz"))
+    paths = sorted(
+        path
+        for path in data_dir.glob("*.json.gz")
+        if path.name.removesuffix(".json.gz") in _REQUIRED_TABLES
+    )
 
     applied_steps = {
         doc["_id"]
