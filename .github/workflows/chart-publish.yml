@@ -9,13 +9,21 @@ name: Chart Publish
 #
 # workflow_dispatch is a fallback for re-running a publish whose
 # release:published event never arrived (e.g. an Actions outage) - dispatch
-# it against the release tag itself (`gh workflow run chart-publish.yml
-# --ref <tag>`) so the version step's github.ref_name fallback below picks
-# up the same tag a real release event would.
+# it with the release tag to (re-)publish (`gh workflow run
+# chart-publish.yml -f tag=1.9.0`). The tag input drives both which commit
+# gets checked out and the packaged chart version, so this works
+# regardless of which branch the dispatch itself runs from - it doesn't
+# need to (and, per GitHub's workflow_dispatch rules, can't reliably)
+# target the release tag ref directly, since that ref predates this
+# trigger existing.
 on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to (re-)publish, e.g. 1.9.0"
+        required: true
 
 permissions:
   contents: read
@@ -27,6 +35,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - uses: azure/setup-helm@v5
         with:
@@ -38,7 +48,7 @@ jobs:
       - name: Determine chart version from release tag
         id: version
         run: |
-          tag="${{ github.event.release.tag_name || github.ref_name }}"
+          tag="${{ github.event.release.tag_name || inputs.tag }}"
           echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
 
       - name: Package and push chart
