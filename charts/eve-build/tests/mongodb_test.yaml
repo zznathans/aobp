@@ -10,7 +10,7 @@ tests:
   - it: renders a MongoDBCommunity CR when enabled
     set:
       mongodb.enabled: true
-      mongodb.passwordSecretName: aobp-mongodb-password
+      mongodb.passwordSecretName: eve-build-mongodb-password
     asserts:
       - hasDocuments:
           count: 1
@@ -46,7 +46,7 @@ tests:
   - it: does not generate a Secret when passwordSecretName is set explicitly
     set:
       mongodb.enabled: true
-      mongodb.passwordSecretName: aobp-mongodb-password
+      mongodb.passwordSecretName: eve-build-mongodb-password
     asserts:
       - hasDocuments:
           count: 1
@@ -54,7 +54,7 @@ tests:
   - it: scopes the user to the configured database with readWrite
     set:
       mongodb.enabled: true
-      mongodb.passwordSecretName: aobp-mongodb-password
+      mongodb.passwordSecretName: eve-build-mongodb-password
       mongodb.username: someuser
       mongodb.database: somedb
     asserts:
@@ -70,16 +70,16 @@ tests:
   - it: passes the password secret name through
     set:
       mongodb.enabled: true
-      mongodb.passwordSecretName: aobp-mongodb-password
+      mongodb.passwordSecretName: eve-build-mongodb-password
     asserts:
       - equal:
           path: spec.users[0].passwordSecretRef.name
-          value: aobp-mongodb-password
+          value: eve-build-mongodb-password
 
   - it: names the connection string secret for the deployment to consume
     set:
       mongodb.enabled: true
-      mongodb.passwordSecretName: aobp-mongodb-password
+      mongodb.passwordSecretName: eve-build-mongodb-password
     asserts:
       - equal:
           path: spec.users[0].connectionStringSecretName
@@ -88,7 +88,7 @@ tests:
   - it: requests storage per member via the volume claim template
     set:
       mongodb.enabled: true
-      mongodb.passwordSecretName: aobp-mongodb-password
+      mongodb.passwordSecretName: eve-build-mongodb-password
       mongodb.storage: 20Gi
     asserts:
       - equal:

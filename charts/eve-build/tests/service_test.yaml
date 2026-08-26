@@ -4,7 +4,7 @@ templates:
 tests:
   - it: renders a ClusterIP-style service on the configured port
     set:
-      aobp.service.port: 8080
+      eveBuild.service.port: 8080
     asserts:
       - hasDocuments:
           count: 1

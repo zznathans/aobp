@@ -1,0 +1,4 @@
+{{- range .Values.eveBuild.extraObjects }}
+---
+{{ toYaml . }}
+{{- end }}

@@ -1,18 +1,18 @@
-# aobp
+# eve-build
 
 A Python (FastAPI) app that runs in Docker, with tests, linting,
 type-checking, and GitHub Actions CI/CD already wired up.
 
 | Workflow | Status |
 | --- | --- |
-| CI | [![CI](https://github.com/zznathans/aobp/actions/workflows/ci.yml/badge.svg)](https://github.com/zznathans/aobp/actions/workflows/ci.yml) |
-| Docker build | [![Docker](https://github.com/zznathans/aobp/actions/workflows/docker-build.yml/badge.svg)](https://github.com/zznathans/aobp/actions/workflows/docker-build.yml) |
-| Labeler | [![Labeler](https://github.com/zznathans/aobp/actions/workflows/labeler.yml/badge.svg)](https://github.com/zznathans/aobp/actions/workflows/labeler.yml) |
-| Coverage | [![Coverage Status](https://coveralls.io/repos/github/zznathans/aobp/badge.svg?branch=main)](https://coveralls.io/github/zznathans/aobp?branch=main) |
-| Helm | [![Helm](https://github.com/zznathans/aobp/actions/workflows/helm.yml/badge.svg)](https://github.com/zznathans/aobp/actions/workflows/helm.yml) |
-| Docker Publish | [![Docker Publish](https://github.com/zznathans/aobp/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/zznathans/aobp/actions/workflows/docker-publish.yml) |
-| Chart Publish | [![Chart Publish](https://github.com/zznathans/aobp/actions/workflows/chart-publish.yml/badge.svg)](https://github.com/zznathans/aobp/actions/workflows/chart-publish.yml) |
-| Release | [![Release](https://img.shields.io/github/v/release/zznathans/aobp)](https://github.com/zznathans/aobp/releases) |
+| CI | [![CI](https://github.com/zznathans/eve-build/actions/workflows/ci.yml/badge.svg)](https://github.com/zznathans/eve-build/actions/workflows/ci.yml) |
+| Docker build | [![Docker](https://github.com/zznathans/eve-build/actions/workflows/docker-build.yml/badge.svg)](https://github.com/zznathans/eve-build/actions/workflows/docker-build.yml) |
+| Labeler | [![Labeler](https://github.com/zznathans/eve-build/actions/workflows/labeler.yml/badge.svg)](https://github.com/zznathans/eve-build/actions/workflows/labeler.yml) |
+| Coverage | [![Coverage Status](https://coveralls.io/repos/github/zznathans/eve-build/badge.svg?branch=main)](https://coveralls.io/github/zznathans/eve-build?branch=main) |
+| Helm | [![Helm](https://github.com/zznathans/eve-build/actions/workflows/helm.yml/badge.svg)](https://github.com/zznathans/eve-build/actions/workflows/helm.yml) |
+| Docker Publish | [![Docker Publish](https://github.com/zznathans/eve-build/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/zznathans/eve-build/actions/workflows/docker-publish.yml) |
+| Chart Publish | [![Chart Publish](https://github.com/zznathans/eve-build/actions/workflows/chart-publish.yml/badge.svg)](https://github.com/zznathans/eve-build/actions/workflows/chart-publish.yml) |
+| Release | [![Release](https://img.shields.io/github/v/release/zznathans/eve-build)](https://github.com/zznathans/eve-build/releases) |
 
 ## What's included
 
@@ -39,7 +39,7 @@ type-checking, and GitHub Actions CI/CD already wired up.
 - **Docker build check**: `.github/workflows/docker-build.yml` — builds the image (no push) on every push/PR to catch a broken `Dockerfile`
 - **PR labeler**: `.github/workflows/labeler.yml` + `.github/labeler.yml` — labels PRs by changed path
 - **Dependabot**: keeps pip, Docker base image, and GitHub Actions up to date
-- **Helm chart**: `charts/aobp/` — deploys the app to Kubernetes, optionally a MongoDB
+- **Helm chart**: `charts/eve-build/` — deploys the app to Kubernetes, optionally a MongoDB
   replica set via the MongoDB Community Operator (see [Deploying](#deploying))
 - **Automated releases**: `release.yml` — semantic-release, driven by Conventional
   Commits on `main`; no manual tagging (see [Releasing](#releasing))
@@ -60,7 +60,7 @@ make format   # ruff --fix + black
 ## Docker
 
 ```bash
-make docker-build     # docker build -t aobp .
+make docker-build     # docker build -t eve-build .
 make docker-run       # docker compose up --build
 ```
 
@@ -147,13 +147,13 @@ swallowed rather than surfaced as request failures.
 
 ## Deploying
 
-A Helm chart lives at `charts/aobp/` — see [its README](charts/aobp/README.md)
+A Helm chart lives at `charts/eve-build/` — see [its README](charts/eve-build/README.md)
 for values and usage. Quick start:
 
 ```bash
-helm lint charts/aobp --strict
-helm unittest charts/aobp
-helm install aobp oci://ghcr.io/zznathans/aobp/charts/aobp --version X.Y.Z
+helm lint charts/eve-build --strict
+helm unittest charts/eve-build
+helm install eve-build oci://ghcr.io/zznathans/eve-build/charts/eve-build --version X.Y.Z
 ```
 
 It deploys a Deployment + Service exposing `/` and `/health` — no chart-owned
@@ -186,16 +186,16 @@ with a [Conventional Commits](https://www.conventionalcommits.org/) message
    creates the `X.Y.Z` tag + GitHub Release directly via the GitHub API — no
    version-bump commit, so this never pushes to `main`.
 2. That published Release is what triggers the actual publishing:
-   - `docker-publish.yml` builds and pushes `ghcr.io/zznathans/aobp:X.Y.Z`,
+   - `docker-publish.yml` builds and pushes `ghcr.io/zznathans/eve-build:X.Y.Z`,
      with a build attestation.
-   - `chart-publish.yml` packages `charts/aobp` with `--version`/`--app-version`
+   - `chart-publish.yml` packages `charts/eve-build` with `--version`/`--app-version`
      overridden from the release tag (not whatever's committed in `Chart.yaml`)
-     and pushes it as an OCI artifact to `oci://ghcr.io/zznathans/aobp/charts` —
-     `helm install aobp oci://ghcr.io/zznathans/aobp/charts/aobp --version X.Y.Z`.
+     and pushes it as an OCI artifact to `oci://ghcr.io/zznathans/eve-build/charts` —
+     `helm install eve-build oci://ghcr.io/zznathans/eve-build/charts/eve-build --version X.Y.Z`.
 
 `Chart.yaml`'s committed `version`/`appVersion` only matter for local
-`helm lint`/`helm unittest` — they're not what gets published. `aobp.imageTag`
-defaults to `.Chart.AppVersion` (see `charts/aobp/README.md`), so installing
+`helm lint`/`helm unittest` — they're not what gets published. `eveBuild.imageTag`
+defaults to `.Chart.AppVersion` (see `charts/eve-build/README.md`), so installing
 the published chart with no overrides deploys the image tag matching that
 release automatically.
 
@@ -223,7 +223,7 @@ app/            application code
   services/     EVE SSO client, ESI client, Redis cache helpers
   web.py        shared dark-mode HTML page chrome
 tests/          tests
-charts/aobp/    Helm chart to deploy the app
+charts/eve-build/    Helm chart to deploy the app
 Dockerfile
 docker-compose.yml
 pyproject.toml  project metadata, deps, tool config (ruff/black/mypy/pytest)

@@ -94,5 +94,5 @@ async def job_detail(
       <a class="btn btn-secondary back" href="/">Back to dashboard</a>
     </div>"""
     return HTMLResponse(
-        render_page(f"{blueprint_name} - aobp", body, _DETAIL_STYLE, character=character)
+        render_page(f"{blueprint_name} - eve-build", body, _DETAIL_STYLE, character=character)
     )

@@ -418,7 +418,7 @@ async def blueprint_detail(
           <a class="btn btn-secondary back" href="/blueprints">Back to blueprints</a>
         </div>"""
         return HTMLResponse(
-            render_page(f"{blueprint_name} - aobp", body, _DETAIL_STYLE, character=character)
+            render_page(f"{blueprint_name} - eve-build", body, _DETAIL_STYLE, character=character)
         )
 
     on_site_totals: dict[int, int] = {}
@@ -485,5 +485,5 @@ async def blueprint_detail(
       <a class="btn btn-secondary back" href="/blueprints">Back to blueprints</a>
     </div>"""
     return HTMLResponse(
-        render_page(f"{blueprint_name} - aobp", body, _DETAIL_STYLE, character=character)
+        render_page(f"{blueprint_name} - eve-build", body, _DETAIL_STYLE, character=character)
     )

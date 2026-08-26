@@ -1,6 +1,6 @@
-# aobp
+# eve-build
 
-Helm chart for [`aobp`](https://github.com/zznathans/aobp).
+Helm chart for [`eve-build`](https://github.com/zznathans/eve-build).
 
 Deploys a FastAPI Deployment + Service, exposing `/` and `/health`. No
 chart-owned Ingress — the Service is meant to sit behind whatever
@@ -33,10 +33,10 @@ purely a cache. Point the app at an external Redis instead via `redis.url`
 (leaving `redis.enabled` false).
 
 The app's full configuration surface (EVE Online SSO, ESI, session cookie
-settings, SDE import behavior) is exposed under `aobp.eveSso`, `aobp.esi`,
-`aobp.session`, `aobp.sdeDataDir`, and `aobp.runMigrationsOnStartup` — see
-the values table below. `aobp.session.secretKey` (which signs the session
-cookie) is required unless `aobp.session.existingSecret` is set; the chart
+settings, SDE import behavior) is exposed under `eveBuild.eveSso`, `eveBuild.esi`,
+`eveBuild.session`, `eveBuild.sdeDataDir`, and `eveBuild.runMigrationsOnStartup` — see
+the values table below. `eveBuild.session.secretKey` (which signs the session
+cookie) is required unless `eveBuild.session.existingSecret` is set; the chart
 stores it in a Secret rather than inlining it into the Deployment spec.
 Standard scheduling/workload knobs (`resources`, `securityContext`,
 `nodeSelector`, `tolerations`, `affinity`, `podAnnotations`, `podLabels`,
@@ -48,6 +48,6 @@ table.
 ## Development
 
 ```
-helm lint charts/aobp --strict
-helm unittest charts/aobp
+helm lint charts/eve-build --strict
+helm unittest charts/eve-build
 ```

@@ -4,8 +4,8 @@ templates:
 tests:
   - it: renders a single deployment using the configured image
     set:
-      aobp.imageRepository: ghcr.io/zznathans/aobp
-      aobp.imageTag: "1.2.3"
+      eveBuild.imageRepository: ghcr.io/zznathans/eve-build
+      eveBuild.imageTag: "1.2.3"
     asserts:
       - hasDocuments:
           count: 1
@@ -13,15 +13,15 @@ tests:
           of: Deployment
       - equal:
           path: spec.template.spec.containers[0].image
-          value: ghcr.io/zznathans/aobp:1.2.3
+          value: ghcr.io/zznathans/eve-build:1.2.3
 
   - it: falls back to the chart's appVersion when imageTag isn't set
     set:
-      aobp.imageRepository: ghcr.io/zznathans/aobp
+      eveBuild.imageRepository: ghcr.io/zznathans/eve-build
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
-          value: ghcr.io/zznathans/aobp:0.1.0
+          value: ghcr.io/zznathans/eve-build:0.1.0
 
   - it: defaults to a single replica
     asserts:
@@ -31,7 +31,7 @@ tests:
 
   - it: scales up via replicaCount
     set:
-      aobp.replicaCount: 3
+      eveBuild.replicaCount: 3
     asserts:
       - equal:
           path: spec.replicas
@@ -61,7 +61,7 @@ tests:
           path: spec.template.spec.containers[0].env[0]
           value:
             name: MONGODB_DATABASE
-            value: aobp
+            value: eve-build
       - equal:
           path: spec.template.spec.containers[0].env[1]
           value:
@@ -168,7 +168,7 @@ tests:
 
   - it: overrides imagePullPolicy
     set:
-      aobp.imagePullPolicy: Always
+      eveBuild.imagePullPolicy: Always
     asserts:
       - equal:
           path: spec.template.spec.containers[0].imagePullPolicy
@@ -176,8 +176,8 @@ tests:
 
   - it: overrides individual securityContext fields
     set:
-      aobp.securityContext.runAsNonRoot: false
-      aobp.securityContext.runAsUser: 0
+      eveBuild.securityContext.runAsNonRoot: false
+      eveBuild.securityContext.runAsUser: 0
     asserts:
       - equal:
           path: spec.template.spec.containers[0].securityContext.runAsNonRoot
@@ -188,7 +188,7 @@ tests:
 
   - it: renders resource requests and limits
     set:
-      aobp.resources:
+      eveBuild.resources:
         requests:
           cpu: 111m
           memory: 111Mi
@@ -208,9 +208,9 @@ tests:
 
   - it: renders pod annotations and extra pod labels
     set:
-      aobp.podAnnotations:
+      eveBuild.podAnnotations:
         foo: bar
-      aobp.podLabels:
+      eveBuild.podLabels:
         team: platform
     asserts:
       - equal:
@@ -230,14 +230,14 @@ tests:
 
   - it: renders nodeSelector, tolerations, and affinity
     set:
-      aobp.nodeSelector:
+      eveBuild.nodeSelector:
         disktype: ssd
-      aobp.tolerations:
+      eveBuild.tolerations:
         - key: app
           operator: Equal
-          value: aobp
+          value: eve-build
           effect: NoSchedule
-      aobp.affinity:
+      eveBuild.affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
@@ -255,7 +255,7 @@ tests:
           value:
             - key: app
               operator: Equal
-              value: aobp
+              value: eve-build
               effect: NoSchedule
       - equal:
           path: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key
@@ -272,7 +272,7 @@ tests:
 
   - it: appends extraEnv entries after the built-in ones
     set:
-      aobp.extraEnv:
+      eveBuild.extraEnv:
         - name: EXTRA_VAR
           value: hello
     asserts:
@@ -284,7 +284,7 @@ tests:
 
   - it: sources SESSION_SECRET_KEY from the chart-managed Secret by default
     set:
-      aobp.session.secretKey: my-signing-key
+      eveBuild.session.secretKey: my-signing-key
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
@@ -297,8 +297,8 @@ tests:
 
   - it: sources SESSION_SECRET_KEY from existingSecret when set
     set:
-      aobp.session.existingSecret: my-session-secret
-      aobp.session.existingSecretKey: signing-key
+      eveBuild.session.existingSecret: my-session-secret
+      eveBuild.session.existingSecretKey: signing-key
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
@@ -311,8 +311,8 @@ tests:
 
   - it: renders session cookie name and max age
     set:
-      aobp.session.cookieName: custom_cookie
-      aobp.session.maxAgeSeconds: 3600
+      eveBuild.session.cookieName: custom_cookie
+      eveBuild.session.maxAgeSeconds: 3600
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
@@ -327,10 +327,10 @@ tests:
 
   - it: renders EVE SSO and ESI settings
     set:
-      aobp.eveSso.clientId: my-client-id
-      aobp.eveSso.callbackUrl: https://example.com/callback
-      aobp.eveSso.scopes: "esi-assets.read_assets.v1"
-      aobp.esi.userAgent: my-app
+      eveBuild.eveSso.clientId: my-client-id
+      eveBuild.eveSso.callbackUrl: https://example.com/callback
+      eveBuild.eveSso.scopes: "esi-assets.read_assets.v1"
+      eveBuild.esi.userAgent: my-app
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
@@ -355,8 +355,8 @@ tests:
 
   - it: renders sdeDataDir and runMigrationsOnStartup
     set:
-      aobp.sdeDataDir: /data/sde
-      aobp.runMigrationsOnStartup: false
+      eveBuild.sdeDataDir: /data/sde
+      eveBuild.runMigrationsOnStartup: false
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env

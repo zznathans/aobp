@@ -68,13 +68,13 @@ _DASHBOARD_STYLE = """
 def _render_login() -> str:
     body = """
       <div class="card">
-        <h1>aobp</h1>
+        <h1>eve-build</h1>
         <form method="get" action="/auth/login">
           <button class="btn btn-primary" type="submit">Log in with EVE Online</button>
         </form>
       </div>
     """
-    return render_page("aobp", body, _LOGIN_STYLE)
+    return render_page("eve-build", body, _LOGIN_STYLE)
 
 
 def _render_dashboard(
@@ -151,7 +151,7 @@ def _render_dashboard(
         <tbody>{job_rows}</tbody>
       </table>
     </div>"""
-    return render_page("aobp", body, _DASHBOARD_STYLE, character=character)
+    return render_page("eve-build", body, _DASHBOARD_STYLE, character=character)
 
 
 @router.get("/", response_class=HTMLResponse)

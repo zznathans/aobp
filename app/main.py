@@ -12,7 +12,7 @@ from app.migrations.runner import run_migrations
 from app.routes import auth, blueprints, health, jobs, market_prices
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-logger = logging.getLogger("aobp")
+logger = logging.getLogger("eve-build")
 
 
 @asynccontextmanager
@@ -50,7 +50,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("Shutdown complete")
 
 
-app = FastAPI(title="aobp", lifespan=lifespan)
+app = FastAPI(title="eve-build", lifespan=lifespan)
 
 _settings = get_settings()
 app.add_middleware(

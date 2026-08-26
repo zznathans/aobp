@@ -23,7 +23,7 @@ run:
 	uvicorn app.main:app --reload
 
 docker-build:
-	docker build -t aobp .
+	docker build -t eve-build .
 
 docker-run:
 	docker compose up --build

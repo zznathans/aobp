@@ -1,12 +1,12 @@
-{{- $marketPricesSecretName := .Values.aobp.marketPrices.existingSecret | default (printf "%s-market-prices" .Release.Name) }}
-{{- $marketPricesSecretKey := (ne .Values.aobp.marketPrices.existingSecret "") | ternary .Values.aobp.marketPrices.existingSecretKey "apiKey" }}
+{{- $marketPricesSecretName := .Values.eveBuild.marketPrices.existingSecret | default (printf "%s-market-prices" .Release.Name) }}
+{{- $marketPricesSecretKey := (ne .Values.eveBuild.marketPrices.existingSecret "") | ternary .Values.eveBuild.marketPrices.existingSecretKey "apiKey" }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: {{ .Release.Name }}-market-prices-refresh
   namespace: {{ .Release.Namespace }}
 spec:
-  schedule: {{ .Values.aobp.marketPrices.schedule | quote }}
+  schedule: {{ .Values.eveBuild.marketPrices.schedule | quote }}
   jobTemplate:
     spec:
       backoffLimit: 2
@@ -27,4 +27,4 @@ spec:
                 - -c
                 - >-
                   curl -sf -X POST -H "X-Api-Key: $(API_KEY)"
-                  http://{{ .Release.Name }}:{{ .Values.aobp.service.port }}/market-prices/refresh
+                  http://{{ .Release.Name }}:{{ .Values.eveBuild.service.port }}/market-prices/refresh

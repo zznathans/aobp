@@ -26,7 +26,7 @@ _REQUIRED_TABLES = frozenset(
     }
 )
 
-logger = logging.getLogger("aobp.migrations")
+logger = logging.getLogger("eve-build.migrations")
 
 
 def _step_id(table_name: str) -> str:
