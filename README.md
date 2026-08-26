@@ -17,10 +17,7 @@ type-checking, and GitHub Actions CI/CD already wired up.
 [EVE SSO](docs/authentication.md), then browse their characters' blueprints and see
 what's buildable from their assets, backed by [CCP's Static Data Export](docs/blueprint-data.md)
 imported into MongoDB (with an optional [Redis cache](docs/caching.md) in front of it).
-It ships with tests, linting, type-checking, and pre-commit hooks; a multi-stage
-`Dockerfile` + `docker-compose.yml`; a [Helm chart](docs/deploying.md) for deploying to
-Kubernetes; and GitHub Actions CI/CD that lints/tests/builds every push and
-[automatically cuts and publishes releases](docs/releasing.md) from `main`.
+A [Helm chart](docs/deploying.md) deploys it to Kubernetes.
 
 ## Getting started
 
