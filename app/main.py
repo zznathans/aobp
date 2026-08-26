@@ -9,7 +9,7 @@ from app.core.config import get_settings
 from app.db.mongo import create_mongo_client
 from app.db.redis import create_redis_client
 from app.migrations.runner import run_migrations
-from app.routes import auth, blueprints, health, jobs
+from app.routes import auth, blueprints, health, jobs, market_prices
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("aobp")
@@ -64,3 +64,4 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(blueprints.router)
 app.include_router(jobs.router)
+app.include_router(market_prices.router)

@@ -54,6 +54,25 @@ async def test_get_character_blueprints_merges_pages() -> None:
 
 
 @respx.mock
+async def test_get_market_prices_parses_entries() -> None:
+    settings = Settings()
+    respx.get(f"{settings.esi_base_url}/markets/prices").mock(
+        return_value=Response(
+            200,
+            json=[
+                {"type_id": 34, "adjusted_price": 5.12, "average_price": 5.5},
+                {"type_id": 35, "adjusted_price": 10.0},
+            ],
+        )
+    )
+
+    prices = await esi.get_market_prices(settings)
+
+    assert prices[0] == esi.MarketPriceEntry(type_id=34, adjusted_price=5.12, average_price=5.5)
+    assert prices[1] == esi.MarketPriceEntry(type_id=35, adjusted_price=10.0, average_price=None)
+
+
+@respx.mock
 async def test_get_location_name_uses_station_endpoint_for_npc_stations() -> None:
     settings = Settings()
     respx.get(f"{settings.esi_base_url}/universe/stations/60003760").mock(

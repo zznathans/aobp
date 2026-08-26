@@ -1,0 +1,30 @@
+{{- $marketPricesSecretName := .Values.aobp.marketPrices.existingSecret | default (printf "%s-market-prices" .Release.Name) }}
+{{- $marketPricesSecretKey := (ne .Values.aobp.marketPrices.existingSecret "") | ternary .Values.aobp.marketPrices.existingSecretKey "apiKey" }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-market-prices-refresh
+  namespace: {{ .Release.Namespace }}
+spec:
+  schedule: {{ .Values.aobp.marketPrices.schedule | quote }}
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: market-prices-refresh
+              image: curlimages/curl:latest
+              env:
+                - name: API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $marketPricesSecretName }}
+                      key: {{ $marketPricesSecretKey }}
+              command:
+                - sh
+                - -c
+                - >-
+                  curl -sf -X POST -H "X-Api-Key: $(API_KEY)"
+                  http://{{ .Release.Name }}:{{ .Values.aobp.service.port }}/market-prices/refresh

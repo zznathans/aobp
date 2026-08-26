@@ -137,6 +137,31 @@ async def get_character_industry_jobs(
     ]
 
 
+@dataclass(frozen=True)
+class MarketPriceEntry:
+    type_id: int
+    adjusted_price: float | None
+    average_price: float | None
+
+
+async def get_market_prices(settings: Settings) -> list[MarketPriceEntry]:
+    url = f"{settings.esi_base_url}/markets/prices"
+    headers = _headers(settings, None)
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, headers=headers)
+        response.raise_for_status()
+
+    return [
+        MarketPriceEntry(
+            type_id=entry["type_id"],
+            adjusted_price=entry.get("adjusted_price"),
+            average_price=entry.get("average_price"),
+        )
+        for entry in response.json()
+    ]
+
+
 async def get_location_name(settings: Settings, access_token: str, location_id: int) -> str | None:
     if location_id < _STATION_ID_MAX:
         path = f"/universe/stations/{location_id}"
