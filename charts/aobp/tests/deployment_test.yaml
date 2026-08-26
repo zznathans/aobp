@@ -159,3 +159,270 @@ tests:
           value:
             name: MONGODB_DATABASE
             value: somedb
+
+  - it: defaults imagePullPolicy to IfNotPresent
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: IfNotPresent
+
+  - it: overrides imagePullPolicy
+    set:
+      aobp.imagePullPolicy: Always
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: Always
+
+  - it: overrides individual securityContext fields
+    set:
+      aobp.securityContext.runAsNonRoot: false
+      aobp.securityContext.runAsUser: 0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 0
+
+  - it: renders resource requests and limits
+    set:
+      aobp.resources:
+        requests:
+          cpu: 111m
+          memory: 111Mi
+        limits:
+          cpu: 222m
+          memory: 222Mi
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests:
+              cpu: 111m
+              memory: 111Mi
+            limits:
+              cpu: 222m
+              memory: 222Mi
+
+  - it: renders pod annotations and extra pod labels
+    set:
+      aobp.podAnnotations:
+        foo: bar
+      aobp.podLabels:
+        team: platform
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations.foo
+          value: bar
+      - equal:
+          path: spec.template.metadata.labels.team
+          value: platform
+      - equal:
+          path: spec.template.metadata.labels.app
+          value: RELEASE-NAME
+
+  - it: omits pod annotations block when unset
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations
+
+  - it: renders nodeSelector, tolerations, and affinity
+    set:
+      aobp.nodeSelector:
+        disktype: ssd
+      aobp.tolerations:
+        - key: app
+          operator: Equal
+          value: aobp
+          effect: NoSchedule
+      aobp.affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values: ["amd64"]
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector
+          value:
+            disktype: ssd
+      - equal:
+          path: spec.template.spec.tolerations
+          value:
+            - key: app
+              operator: Equal
+              value: aobp
+              effect: NoSchedule
+      - equal:
+          path: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key
+          value: kubernetes.io/arch
+
+  - it: omits nodeSelector/tolerations/affinity when unset
+    asserts:
+      - notExists:
+          path: spec.template.spec.nodeSelector
+      - notExists:
+          path: spec.template.spec.tolerations
+      - notExists:
+          path: spec.template.spec.affinity
+
+  - it: appends extraEnv entries after the built-in ones
+    set:
+      aobp.extraEnv:
+        - name: EXTRA_VAR
+          value: hello
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: EXTRA_VAR
+            value: hello
+
+  - it: sources SESSION_SECRET_KEY from the chart-managed Secret by default
+    set:
+      aobp.session.secretKey: my-signing-key
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SESSION_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-session
+                key: secretKey
+
+  - it: sources SESSION_SECRET_KEY from existingSecret when set
+    set:
+      aobp.session.existingSecret: my-session-secret
+      aobp.session.existingSecretKey: signing-key
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SESSION_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: my-session-secret
+                key: signing-key
+
+  - it: renders session cookie name and max age
+    set:
+      aobp.session.cookieName: custom_cookie
+      aobp.session.maxAgeSeconds: 3600
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SESSION_COOKIE_NAME
+            value: custom_cookie
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SESSION_MAX_AGE_SECONDS
+            value: "3600"
+
+  - it: renders EVE SSO and ESI settings
+    set:
+      aobp.eveSso.clientId: my-client-id
+      aobp.eveSso.callbackUrl: https://example.com/callback
+      aobp.eveSso.scopes: "esi-assets.read_assets.v1"
+      aobp.esi.userAgent: my-app
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: EVE_SSO_CLIENT_ID
+            value: my-client-id
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: EVE_SSO_CALLBACK_URL
+            value: https://example.com/callback
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: EVE_SSO_SCOPES
+            value: "esi-assets.read_assets.v1"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ESI_USER_AGENT
+            value: my-app
+
+  - it: renders sdeDataDir and runMigrationsOnStartup
+    set:
+      aobp.sdeDataDir: /data/sde
+      aobp.runMigrationsOnStartup: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SDE_DATA_DIR
+            value: /data/sde
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: RUN_MIGRATIONS_ON_STARTUP
+            value: "false"
+
+  - it: defaults REDIS_ENABLED to false and omits REDIS_URL/REDIS_CACHE_TTL_SECONDS
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REDIS_ENABLED
+            value: "false"
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REDIS_URL
+
+  - it: points REDIS_URL at the bundled service when redis.enabled
+    set:
+      redis.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REDIS_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REDIS_URL
+            value: redis://RELEASE-NAME-redis:6379/0
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REDIS_CACHE_TTL_SECONDS
+            value: "86400"
+
+  - it: uses redis.url for an external Redis when redis.enabled is false
+    set:
+      redis.url: redis://external-redis:6379/2
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REDIS_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REDIS_URL
+            value: redis://external-redis:6379/2
+
+  - it: redis.enabled takes precedence over redis.url
+    set:
+      redis.enabled: true
+      redis.url: redis://external-redis:6379/2
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REDIS_URL
+            value: redis://RELEASE-NAME-redis:6379/0

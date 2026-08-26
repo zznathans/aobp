@@ -1,3 +1,7 @@
+{{- $redisEnabled := or .Values.redis.enabled (ne .Values.redis.url "") }}
+{{- $redisUrl := .Values.redis.enabled | ternary (printf "redis://%s-redis:6379/0" .Release.Name) .Values.redis.url }}
+{{- $sessionSecretName := .Values.aobp.session.existingSecret | default (printf "%s-session" .Release.Name) }}
+{{- $sessionSecretKey := (ne .Values.aobp.session.existingSecret "") | ternary .Values.aobp.session.existingSecretKey "secretKey" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -12,11 +16,31 @@ spec:
     metadata:
       labels:
         app: {{ .Release.Name }}
+        {{- with .Values.aobp.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.aobp.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       serviceAccountName: {{ .Release.Name }}-serviceaccount
+      {{- with .Values.aobp.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.aobp.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.aobp.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ .Release.Name }}
           image: {{ .Values.aobp.imageRepository }}:{{ .Values.aobp.imageTag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.aobp.imagePullPolicy }}
           ports:
             - containerPort: 8000
           env:
@@ -44,14 +68,54 @@ spec:
             - name: MONGODB_URI
               value: {{ .Values.mongodb.uri | quote }}
             {{- end }}
+            - name: SDE_DATA_DIR
+              value: {{ .Values.aobp.sdeDataDir | quote }}
+            - name: RUN_MIGRATIONS_ON_STARTUP
+              value: {{ .Values.aobp.runMigrationsOnStartup | quote }}
+            - name: REDIS_ENABLED
+              value: {{ $redisEnabled | quote }}
+            {{- if $redisEnabled }}
+            - name: REDIS_URL
+              value: {{ $redisUrl | quote }}
+            - name: REDIS_CACHE_TTL_SECONDS
+              value: {{ .Values.redis.cacheTtlSeconds | int | quote }}
+            {{- end }}
+            - name: EVE_SSO_CLIENT_ID
+              value: {{ .Values.aobp.eveSso.clientId | quote }}
+            - name: EVE_SSO_CALLBACK_URL
+              value: {{ .Values.aobp.eveSso.callbackUrl | quote }}
+            - name: EVE_SSO_SCOPES
+              value: {{ .Values.aobp.eveSso.scopes | quote }}
+            - name: EVE_SSO_AUTHORIZE_URL
+              value: {{ .Values.aobp.eveSso.authorizeUrl | quote }}
+            - name: EVE_SSO_TOKEN_URL
+              value: {{ .Values.aobp.eveSso.tokenUrl | quote }}
+            - name: EVE_SSO_JWKS_URL
+              value: {{ .Values.aobp.eveSso.jwksUrl | quote }}
+            - name: EVE_SSO_ISSUER
+              value: {{ .Values.aobp.eveSso.issuer | quote }}
+            - name: EVE_SSO_AUDIENCE
+              value: {{ .Values.aobp.eveSso.audience | quote }}
+            - name: ESI_BASE_URL
+              value: {{ .Values.aobp.esi.baseUrl | quote }}
+            - name: ESI_COMPATIBILITY_DATE
+              value: {{ .Values.aobp.esi.compatibilityDate | quote }}
+            - name: ESI_USER_AGENT
+              value: {{ .Values.aobp.esi.userAgent | quote }}
+            - name: SESSION_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $sessionSecretName }}
+                  key: {{ $sessionSecretKey }}
+            - name: SESSION_COOKIE_NAME
+              value: {{ .Values.aobp.session.cookieName | quote }}
+            - name: SESSION_MAX_AGE_SECONDS
+              value: {{ .Values.aobp.session.maxAgeSeconds | int | quote }}
+            {{- with .Values.aobp.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           securityContext:
-            allowPrivilegeEscalation: false
-            runAsNonRoot: true
-            runAsUser: 1000
-            seccompProfile:
-              type: RuntimeDefault
-            capabilities:
-              drop: ["ALL"]
+            {{- toYaml .Values.aobp.securityContext | nindent 12 }}
           resources:
             {{- toYaml .Values.aobp.resources | nindent 12 }}
           readinessProbe:

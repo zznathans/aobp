@@ -21,15 +21,27 @@ MongoDB instance), or a Secret referenced via `mongodb.existingSecret`, or
 one synced by an optionally chart-deployed `ExternalSecret`
 (`mongodb.externalSecret.enabled`, requires the
 [External Secrets Operator](https://external-secrets.io) already installed
-in the cluster) - which pulls a JSON object with `db_host`, `db_port`,
-`db_user`, `db_password`, and `db_name` keys (the shape DigitalOcean Managed
+in the cluster) - which pulls a JSON object with `db_host`, `db_host_public`,
+`db_port`, `db_user`, `db_password`, and `db_name` keys (the shape DigitalOcean Managed
 MongoDB writes) and assembles it into a connection string.
 
 Optionally (`redis.enabled`) also deploys a plain Redis Deployment + Service,
 used by the app as an optional cache to cut down on MongoDB reads for
 reference data. It's not a hard dependency of the app — nothing else in the
 cluster needs to know about it, and there's no persistence/PVC since it's
-purely a cache.
+purely a cache. Point the app at an external Redis instead via `redis.url`
+(leaving `redis.enabled` false).
+
+The app's full configuration surface (EVE Online SSO, ESI, session cookie
+settings, SDE import behavior) is exposed under `aobp.eveSso`, `aobp.esi`,
+`aobp.session`, `aobp.sdeDataDir`, and `aobp.runMigrationsOnStartup` — see
+the values table below. `aobp.session.secretKey` (which signs the session
+cookie) is required unless `aobp.session.existingSecret` is set; the chart
+stores it in a Secret rather than inlining it into the Deployment spec.
+Standard scheduling/workload knobs (`resources`, `securityContext`,
+`nodeSelector`, `tolerations`, `affinity`, `podAnnotations`, `podLabels`,
+`imagePullPolicy`, `extraEnv`) are also all configurable per the values
+table.
 
 {{ template "chart.valuesSection" . }}
 
