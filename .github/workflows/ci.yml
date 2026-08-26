@@ -3,7 +3,9 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore: ["charts/**", "**.md"]
   pull_request:
+    paths-ignore: ["charts/**", "**.md"]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -35,7 +37,25 @@ jobs:
       - name: Mypy
         run: mypy app
 
+  matrix-config:
+    runs-on: ubuntu-latest
+    outputs:
+      # Full compatibility matrix only on push to main (i.e. after a PR
+      # merges, before anything gets released) - PRs get fast feedback on
+      # just the newest Python version instead of paying for all 4 legs on
+      # every push.
+      python-versions: ${{ steps.set.outputs.versions }}
+    steps:
+      - id: set
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo 'versions=["3.11","3.12","3.13","3.14"]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'versions=["3.14"]' >> "$GITHUB_OUTPUT"
+          fi
+
   test:
+    needs: [matrix-config]
     runs-on: ubuntu-latest
     # Job-level permissions replace (not merge with) the workflow-level
     # block above, so contents: read has to be repeated here too, or
@@ -49,7 +69,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        python-version: ${{ fromJson(needs.matrix-config.outputs.python-versions) }}
     steps:
       - uses: actions/checkout@v7
 
