@@ -7,5 +7,6 @@ spec:
   selector:
     app: {{ .Release.Name }}
   ports:
-    - port: {{ .Values.eveBuild.service.port }}
+    - name: http
+      port: {{ .Values.eveBuild.service.port }}
       targetPort: 8000

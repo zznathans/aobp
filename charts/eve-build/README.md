@@ -32,6 +32,13 @@ cluster needs to know about it, and there's no persistence/PVC since it's
 purely a cache. Point the app at an external Redis instead via `redis.url`
 (leaving `redis.enabled` false).
 
+Optionally (`eveBuild.metrics.enabled`) the app exposes Prometheus-compatible
+metrics at `GET /metrics`. Optionally (`eveBuild.metrics.serviceMonitor.enabled`)
+also deploys a `ServiceMonitor` so a Prometheus Operator in the cluster scrapes it
+automatically — this requires the
+[Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator)
+CRDs already installed in the cluster.
+
 The app's full configuration surface (EVE Online SSO, ESI, session cookie
 settings, SDE import behavior) is exposed under `eveBuild.eveSso`, `eveBuild.esi`,
 `eveBuild.session`, `eveBuild.sdeDataDir`, and `eveBuild.runMigrationsOnStartup` — see
@@ -69,6 +76,10 @@ table.
 | eveBuild.marketPrices.existingSecretKey | string | `"apiKey"` | Key within `existingSecret` holding the refresh API key. |
 | eveBuild.marketPrices.refreshApiKey | string | `""` | Shared secret the `/market-prices/refresh` endpoint requires via the `X-Api-Key` header, used by the CronJob below to trigger a poll. Required unless `existingSecret` is set - generate one with `openssl rand -hex 32`. |
 | eveBuild.marketPrices.schedule | string | `"0 * * * *"` | Cron schedule the CronJob uses to trigger a market price refresh. |
+| eveBuild.metrics.enabled | bool | `false` | Expose Prometheus-compatible metrics at GET /metrics. |
+| eveBuild.metrics.serviceMonitor.enabled | bool | `false` | Deploy a ServiceMonitor for Prometheus Operator to scrape /metrics automatically. Requires the Prometheus Operator CRDs already installed in the cluster, and `eveBuild.metrics.enabled: true`. |
+| eveBuild.metrics.serviceMonitor.interval | string | `"30s"` | Scrape interval. |
+| eveBuild.metrics.serviceMonitor.labels | object | `{}` | Extra labels on the ServiceMonitor, e.g. for a Prometheus instance's serviceMonitorSelector. |
 | eveBuild.nodeSelector | object | `{}` | Node selector for the pod. |
 | eveBuild.podAnnotations | object | `{}` | Annotations applied to the pod template. |
 | eveBuild.podLabels | object | `{}` | Extra labels applied to the pod template, in addition to the chart's own `app` label. |

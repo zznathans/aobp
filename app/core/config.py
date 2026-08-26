@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     redis_cache_ttl_seconds: int = 60 * 60 * 24
 
+    metrics_enabled: bool = False
+
     session_secret_key: str = "insecure-dev-secret-change-me"
     session_cookie_name: str = "eve_build_session"
     session_max_age_seconds: int = 60 * 60 * 24 * 14

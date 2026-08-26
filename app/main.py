@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import get_settings
@@ -59,6 +60,9 @@ app.add_middleware(
     session_cookie=_settings.session_cookie_name,
     max_age=_settings.session_max_age_seconds,
 )
+
+if _settings.metrics_enabled:
+    Instrumentator().instrument(app).expose(app)
 
 app.include_router(health.router)
 app.include_router(auth.router)
