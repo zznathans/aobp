@@ -39,7 +39,7 @@ def rsa_key_pair() -> tuple[rsa.RSAPrivateKey, dict[str, object]]:
 @pytest.fixture
 def mongo_db() -> object:
     client = AsyncMongoMockClient()
-    return client["aobp"]
+    return client["eve-build"]
 
 
 @pytest.fixture
@@ -55,7 +55,7 @@ def test_settings() -> Settings:
         eve_sso_scopes="",
         session_secret_key="test-secret",
         mongodb_uri="mongodb://localhost:27017",
-        mongodb_database="aobp",
+        mongodb_database="eve-build",
     )
 
 

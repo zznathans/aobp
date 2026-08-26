@@ -1,7 +1,7 @@
 ---
 apiVersion: v2
-name: aobp
-description: Helm chart for aobp
+name: eve-build
+description: Helm chart for eve-build
 
 type: application
 

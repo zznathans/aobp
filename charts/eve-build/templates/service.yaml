@@ -7,5 +7,5 @@ spec:
   selector:
     app: {{ .Release.Name }}
   ports:
-    - port: {{ .Values.aobp.service.port }}
+    - port: {{ .Values.eveBuild.service.port }}
       targetPort: 8000

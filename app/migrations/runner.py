@@ -9,7 +9,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 import app.migrations as migrations_package
 from app.core.config import Settings
 
-logger = logging.getLogger("aobp.migrations")
+logger = logging.getLogger("eve-build.migrations")
 
 
 class Migration(Protocol):

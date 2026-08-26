@@ -1,16 +1,16 @@
 {{- $redisEnabled := or .Values.redis.enabled (ne .Values.redis.url "") }}
 {{- $redisUrl := .Values.redis.enabled | ternary (printf "redis://%s-redis:6379/0" .Release.Name) .Values.redis.url }}
-{{- $sessionSecretName := .Values.aobp.session.existingSecret | default (printf "%s-session" .Release.Name) }}
-{{- $sessionSecretKey := (ne .Values.aobp.session.existingSecret "") | ternary .Values.aobp.session.existingSecretKey "secretKey" }}
-{{- $marketPricesSecretName := .Values.aobp.marketPrices.existingSecret | default (printf "%s-market-prices" .Release.Name) }}
-{{- $marketPricesSecretKey := (ne .Values.aobp.marketPrices.existingSecret "") | ternary .Values.aobp.marketPrices.existingSecretKey "apiKey" }}
+{{- $sessionSecretName := .Values.eveBuild.session.existingSecret | default (printf "%s-session" .Release.Name) }}
+{{- $sessionSecretKey := (ne .Values.eveBuild.session.existingSecret "") | ternary .Values.eveBuild.session.existingSecretKey "secretKey" }}
+{{- $marketPricesSecretName := .Values.eveBuild.marketPrices.existingSecret | default (printf "%s-market-prices" .Release.Name) }}
+{{- $marketPricesSecretKey := (ne .Values.eveBuild.marketPrices.existingSecret "") | ternary .Values.eveBuild.marketPrices.existingSecretKey "apiKey" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Release.Name }}
   namespace: {{ .Release.Namespace }}
 spec:
-  replicas: {{ .Values.aobp.replicaCount }}
+  replicas: {{ .Values.eveBuild.replicaCount }}
   selector:
     matchLabels:
       app: {{ .Release.Name }}
@@ -18,31 +18,31 @@ spec:
     metadata:
       labels:
         app: {{ .Release.Name }}
-        {{- with .Values.aobp.podLabels }}
+        {{- with .Values.eveBuild.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-      {{- with .Values.aobp.podAnnotations }}
+      {{- with .Values.eveBuild.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
       serviceAccountName: {{ .Release.Name }}-serviceaccount
-      {{- with .Values.aobp.nodeSelector }}
+      {{- with .Values.eveBuild.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.aobp.tolerations }}
+      {{- with .Values.eveBuild.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.aobp.affinity }}
+      {{- with .Values.eveBuild.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
         - name: {{ .Release.Name }}
-          image: {{ .Values.aobp.imageRepository }}:{{ .Values.aobp.imageTag | default .Chart.AppVersion }}
-          imagePullPolicy: {{ .Values.aobp.imagePullPolicy }}
+          image: {{ .Values.eveBuild.imageRepository }}:{{ .Values.eveBuild.imageTag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.eveBuild.imagePullPolicy }}
           ports:
             - containerPort: 8000
           env:
@@ -71,9 +71,9 @@ spec:
               value: {{ .Values.mongodb.uri | quote }}
             {{- end }}
             - name: SDE_DATA_DIR
-              value: {{ .Values.aobp.sdeDataDir | quote }}
+              value: {{ .Values.eveBuild.sdeDataDir | quote }}
             - name: RUN_MIGRATIONS_ON_STARTUP
-              value: {{ .Values.aobp.runMigrationsOnStartup | quote }}
+              value: {{ .Values.eveBuild.runMigrationsOnStartup | quote }}
             - name: REDIS_ENABLED
               value: {{ $redisEnabled | quote }}
             {{- if $redisEnabled }}
@@ -83,48 +83,48 @@ spec:
               value: {{ .Values.redis.cacheTtlSeconds | int | quote }}
             {{- end }}
             - name: EVE_SSO_CLIENT_ID
-              value: {{ .Values.aobp.eveSso.clientId | quote }}
+              value: {{ .Values.eveBuild.eveSso.clientId | quote }}
             - name: EVE_SSO_CALLBACK_URL
-              value: {{ .Values.aobp.eveSso.callbackUrl | quote }}
+              value: {{ .Values.eveBuild.eveSso.callbackUrl | quote }}
             - name: EVE_SSO_SCOPES
-              value: {{ .Values.aobp.eveSso.scopes | quote }}
+              value: {{ .Values.eveBuild.eveSso.scopes | quote }}
             - name: EVE_SSO_AUTHORIZE_URL
-              value: {{ .Values.aobp.eveSso.authorizeUrl | quote }}
+              value: {{ .Values.eveBuild.eveSso.authorizeUrl | quote }}
             - name: EVE_SSO_TOKEN_URL
-              value: {{ .Values.aobp.eveSso.tokenUrl | quote }}
+              value: {{ .Values.eveBuild.eveSso.tokenUrl | quote }}
             - name: EVE_SSO_JWKS_URL
-              value: {{ .Values.aobp.eveSso.jwksUrl | quote }}
+              value: {{ .Values.eveBuild.eveSso.jwksUrl | quote }}
             - name: EVE_SSO_ISSUER
-              value: {{ .Values.aobp.eveSso.issuer | quote }}
+              value: {{ .Values.eveBuild.eveSso.issuer | quote }}
             - name: EVE_SSO_AUDIENCE
-              value: {{ .Values.aobp.eveSso.audience | quote }}
+              value: {{ .Values.eveBuild.eveSso.audience | quote }}
             - name: ESI_BASE_URL
-              value: {{ .Values.aobp.esi.baseUrl | quote }}
+              value: {{ .Values.eveBuild.esi.baseUrl | quote }}
             - name: ESI_COMPATIBILITY_DATE
-              value: {{ .Values.aobp.esi.compatibilityDate | quote }}
+              value: {{ .Values.eveBuild.esi.compatibilityDate | quote }}
             - name: ESI_USER_AGENT
-              value: {{ .Values.aobp.esi.userAgent | quote }}
+              value: {{ .Values.eveBuild.esi.userAgent | quote }}
             - name: SESSION_SECRET_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ $sessionSecretName }}
                   key: {{ $sessionSecretKey }}
             - name: SESSION_COOKIE_NAME
-              value: {{ .Values.aobp.session.cookieName | quote }}
+              value: {{ .Values.eveBuild.session.cookieName | quote }}
             - name: SESSION_MAX_AGE_SECONDS
-              value: {{ .Values.aobp.session.maxAgeSeconds | int | quote }}
+              value: {{ .Values.eveBuild.session.maxAgeSeconds | int | quote }}
             - name: MARKET_PRICES_REFRESH_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ $marketPricesSecretName }}
                   key: {{ $marketPricesSecretKey }}
-            {{- with .Values.aobp.extraEnv }}
+            {{- with .Values.eveBuild.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
           securityContext:
-            {{- toYaml .Values.aobp.securityContext | nindent 12 }}
+            {{- toYaml .Values.eveBuild.securityContext | nindent 12 }}
           resources:
-            {{- toYaml .Values.aobp.resources | nindent 12 }}
+            {{- toYaml .Values.eveBuild.resources | nindent 12 }}
           readinessProbe:
             httpGet:
               path: /health

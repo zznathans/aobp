@@ -5,7 +5,7 @@ name: Chart Publish
 # --version/--app-version overridden from the release tag rather than
 # whatever's committed in Chart.yaml - so cutting a release is the only
 # step, no version-bump commit/PR needed first. Pushed as an OCI artifact
-# to GHCR: `helm install oci://ghcr.io/zznathans/aobp/charts/aobp --version X.Y.Z`.
+# to GHCR: `helm install oci://ghcr.io/zznathans/eve-build/charts/eve-build --version X.Y.Z`.
 #
 # workflow_dispatch is a fallback for re-running a publish whose
 # release:published event never arrived (e.g. an Actions outage) - dispatch
@@ -54,8 +54,8 @@ jobs:
       - name: Package and push chart
         run: |
           set -euo pipefail
-          helm package charts/aobp \
+          helm package charts/eve-build \
             --version "${{ steps.version.outputs.version }}" \
             --app-version "${{ steps.version.outputs.version }}" \
             -d /tmp/chart-out
-          helm push /tmp/chart-out/aobp-*.tgz oci://ghcr.io/zznathans/aobp/charts
+          helm push /tmp/chart-out/eve-build-*.tgz oci://ghcr.io/zznathans/eve-build/charts

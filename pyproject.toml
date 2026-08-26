@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aobp"
+name = "eve-build"
 version = "0.1.0"
 description = "Python app that runs in Docker, with tests, linting, and CI/CD wired up."
 readme = "README.md"

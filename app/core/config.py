@@ -17,12 +17,12 @@ class Settings(BaseSettings):
 
     esi_base_url: str = "https://esi.evetech.net"
     esi_compatibility_date: str = "2026-08-18"
-    esi_user_agent: str = "aobp"
+    esi_user_agent: str = "eve-build"
 
     market_prices_refresh_api_key: str = ""
 
     mongodb_uri: str = "mongodb://localhost:27017"
-    mongodb_database: str = "aobp"
+    mongodb_database: str = "eve-build"
 
     sde_data_dir: str = "app/data/sde"
     run_migrations_on_startup: bool = True
@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     redis_cache_ttl_seconds: int = 60 * 60 * 24
 
     session_secret_key: str = "insecure-dev-secret-change-me"
-    session_cookie_name: str = "aobp_session"
+    session_cookie_name: str = "eve_build_session"
     session_max_age_seconds: int = 60 * 60 * 24 * 14
 
 

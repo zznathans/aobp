@@ -135,7 +135,7 @@ def render_nav(character: CharacterDocument | None) -> str:
     if character is None:
         return """
           <nav class="navbar">
-            <a class="brand" href="/">aobp</a>
+            <a class="brand" href="/">eve-build</a>
             <a class="btn btn-primary" href="/auth/login">Log in with EVE Online</a>
           </nav>
         """
@@ -146,7 +146,7 @@ def render_nav(character: CharacterDocument | None) -> str:
     character_name = escape(character.character_name)
     return f"""
       <nav class="navbar">
-        <a class="brand" href="/">aobp</a>
+        <a class="brand" href="/">eve-build</a>
         <div class="nav-links">
           <a href="/">Home</a>
           <a href="/blueprints">Blueprints</a>

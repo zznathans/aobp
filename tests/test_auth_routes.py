@@ -21,7 +21,7 @@ def test_login_redirects_to_eve_authorize_url(client: TestClient) -> None:
     assert query["code_challenge_method"] == ["S256"]
     assert "state" in query
     assert "code_challenge" in query
-    assert client.cookies.get("aobp_session") is not None
+    assert client.cookies.get("eve_build_session") is not None
 
 
 @respx.mock

@@ -2,7 +2,7 @@ suite: market-prices-cronjob
 templates:
   - market-prices-cronjob.yaml
 set:
-  aobp.marketPrices.refreshApiKey: my-api-key
+  eveBuild.marketPrices.refreshApiKey: my-api-key
 tests:
   - it: renders a CronJob
     asserts:
@@ -13,7 +13,7 @@ tests:
 
   - it: uses the configured schedule
     set:
-      aobp.marketPrices.schedule: "*/30 * * * *"
+      eveBuild.marketPrices.schedule: "*/30 * * * *"
     asserts:
       - equal:
           path: spec.schedule
@@ -30,7 +30,7 @@ tests:
 
   - it: sources the API key from an existingSecret when set
     set:
-      aobp.marketPrices.existingSecret: my-market-prices-secret
+      eveBuild.marketPrices.existingSecret: my-market-prices-secret
     asserts:
       - equal:
           path: spec.jobTemplate.spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.name
