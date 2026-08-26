@@ -131,8 +131,8 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 30
           startupProbe:
-          httpGet:
-            path: /healthz
-            port: 8000
-          failureThreshold: 60
-          periodSeconds: 10
+            httpGet:
+              path: /healthz
+              port: 8000
+            failureThreshold: 60
+            periodSeconds: 10
