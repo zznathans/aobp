@@ -5,14 +5,11 @@ type-checking, and GitHub Actions CI/CD already wired up.
 
 | Workflow | Status |
 | --- | --- |
-| CI | [![CI](https://github.com/zznathans/eve-build/actions/workflows/ci.yml/badge.svg)](https://github.com/zznathans/eve-build/actions/workflows/ci.yml) |
-| Docker build | [![Docker](https://github.com/zznathans/eve-build/actions/workflows/docker-build.yml/badge.svg)](https://github.com/zznathans/eve-build/actions/workflows/docker-build.yml) |
-| Labeler | [![Labeler](https://github.com/zznathans/eve-build/actions/workflows/labeler.yml/badge.svg)](https://github.com/zznathans/eve-build/actions/workflows/labeler.yml) |
-| Coverage | [![Coverage Status](https://coveralls.io/repos/github/zznathans/eve-build/badge.svg?branch=main)](https://coveralls.io/github/zznathans/eve-build?branch=main) |
-| Helm | [![Helm](https://github.com/zznathans/eve-build/actions/workflows/helm.yml/badge.svg)](https://github.com/zznathans/eve-build/actions/workflows/helm.yml) |
-| Docker Publish | [![Docker Publish](https://github.com/zznathans/eve-build/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/zznathans/eve-build/actions/workflows/docker-publish.yml) |
-| Chart Publish | [![Chart Publish](https://github.com/zznathans/eve-build/actions/workflows/chart-publish.yml/badge.svg)](https://github.com/zznathans/eve-build/actions/workflows/chart-publish.yml) |
-| Release | [![Release](https://img.shields.io/github/v/release/zznathans/eve-build)](https://github.com/zznathans/eve-build/releases) |
+| Lint/Tests | [![CI](https://github.com/zznathans/eve-build/actions/workflows/ci.yml/badge.svg)](https://github.com/zznathans/eve-build/actions/workflows/ci.yml) |
+| Test Coverage | [![Coverage Status](https://coveralls.io/repos/github/zznathans/eve-build/badge.svg?branch=main)](https://coveralls.io/github/zznathans/eve-build?branch=main) |
+| Docker | [![Docker Publish](https://github.com/zznathans/eve-build/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/zznathans/eve-build/actions/workflows/docker-publish.yml) |
+| Chart | [![Chart Publish](https://github.com/zznathans/eve-build/actions/workflows/chart-publish.yml/badge.svg)](https://github.com/zznathans/eve-build/actions/workflows/chart-publish.yml) |
+| Latest Release | [![Release](https://img.shields.io/github/v/release/zznathans/eve-build)](https://github.com/zznathans/eve-build/releases) |
 
 ## What's included
 
