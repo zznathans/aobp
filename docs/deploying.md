@@ -26,3 +26,8 @@ once and kept stable across upgrades.
 Optionally (`redis.enabled=true`) it also deploys a plain Redis Deployment +
 Service, used by the app as an optional cache (see [Caching](caching.md)) — not
 a hard dependency, no persistence/PVC since it's purely a cache.
+
+Optionally (`eveBuild.metrics.enabled=true`) the app exposes Prometheus-compatible
+metrics at `GET /metrics`. Setting `eveBuild.metrics.serviceMonitor.enabled=true` also
+deploys a `ServiceMonitor` so a Prometheus Operator in the cluster scrapes it
+automatically — this requires the Prometheus Operator CRDs already installed.

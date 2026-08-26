@@ -32,6 +32,13 @@ cluster needs to know about it, and there's no persistence/PVC since it's
 purely a cache. Point the app at an external Redis instead via `redis.url`
 (leaving `redis.enabled` false).
 
+Optionally (`eveBuild.metrics.enabled`) the app exposes Prometheus-compatible
+metrics at `GET /metrics`. Optionally (`eveBuild.metrics.serviceMonitor.enabled`)
+also deploys a `ServiceMonitor` so a Prometheus Operator in the cluster scrapes it
+automatically — this requires the
+[Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator)
+CRDs already installed in the cluster.
+
 The app's full configuration surface (EVE Online SSO, ESI, session cookie
 settings, SDE import behavior) is exposed under `eveBuild.eveSso`, `eveBuild.esi`,
 `eveBuild.session`, `eveBuild.sdeDataDir`, and `eveBuild.runMigrationsOnStartup` — see

@@ -426,3 +426,21 @@ tests:
           content:
             name: REDIS_URL
             value: redis://RELEASE-NAME-redis:6379/0
+
+  - it: defaults METRICS_ENABLED to false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: METRICS_ENABLED
+            value: "false"
+
+  - it: sets METRICS_ENABLED when eveBuild.metrics.enabled
+    set:
+      eveBuild.metrics.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: METRICS_ENABLED
+            value: "true"

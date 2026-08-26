@@ -82,6 +82,8 @@ spec:
             - name: REDIS_CACHE_TTL_SECONDS
               value: {{ .Values.redis.cacheTtlSeconds | int | quote }}
             {{- end }}
+            - name: METRICS_ENABLED
+              value: {{ .Values.eveBuild.metrics.enabled | quote }}
             - name: EVE_SSO_CLIENT_ID
               value: {{ .Values.eveBuild.eveSso.clientId | quote }}
             - name: EVE_SSO_CALLBACK_URL
