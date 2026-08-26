@@ -12,6 +12,8 @@ aobp:
   # default for a raw checkout (falls back to Chart.yaml's committed
   # appVersion) or local helm lint/unittest.
   imageTag: ""
+  # -- Image pull policy for the app container.
+  imagePullPolicy: IfNotPresent
   # -- List of image pull secret names to attach to the ServiceAccount. Leave empty if the registry is public.
   imagePullSecrets: []
 
@@ -23,6 +25,82 @@ aobp:
     limits:
       cpu: 250m
       memory: 128Mi
+
+  # -- Container securityContext for the app container.
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 1000
+    seccompProfile:
+      type: RuntimeDefault
+    capabilities:
+      drop: ["ALL"]
+
+  # -- Annotations applied to the pod template.
+  podAnnotations: {}
+  # -- Extra labels applied to the pod template, in addition to the chart's own `app` label.
+  podLabels: {}
+  # -- Node selector for the pod.
+  nodeSelector: {}
+  # -- Tolerations for the pod.
+  tolerations: []
+  # -- Affinity rules for the pod.
+  affinity: {}
+
+  # -- Extra environment variables appended to the app container, after the
+  # chart's own. Each entry is a raw Kubernetes EnvVar (`name` plus `value`
+  # or `valueFrom`) - use this for anything not otherwise exposed below.
+  extraEnv: []
+
+  eveSso:
+    # -- EVE Online SSO application client ID
+    # (https://developers.eveonline.com/applications).
+    clientId: ""
+    # -- Callback URL registered on the SSO application. Must match exactly.
+    callbackUrl: ""
+    # -- Space-separated ESI scopes to request during login. May be empty.
+    scopes: ""
+    # -- EVE SSO authorization endpoint.
+    authorizeUrl: "https://login.eveonline.com/v2/oauth/authorize"
+    # -- EVE SSO token endpoint.
+    tokenUrl: "https://login.eveonline.com/v2/oauth/token"
+    # -- EVE SSO JWKS endpoint, used to verify token signatures.
+    jwksUrl: "https://login.eveonline.com/oauth/jwks"
+    # -- Expected `iss` claim on SSO tokens.
+    issuer: "https://login.eveonline.com"
+    # -- Expected `aud` claim on SSO tokens.
+    audience: "EVE Online"
+
+  esi:
+    # -- Base URL for the EVE Swagger Interface.
+    baseUrl: "https://esi.evetech.net"
+    # -- ESI compatibility date header value.
+    compatibilityDate: "2026-08-18"
+    # -- User-Agent sent on ESI requests - identify your deployment per ESI's guidelines.
+    userAgent: "aobp"
+
+  session:
+    # -- Value used to sign the session cookie. Required unless
+    # `existingSecret` is set - generate one with `openssl rand -hex 32`.
+    # The chart stores it in a Secret rather than inlining it into the
+    # Deployment spec.
+    secretKey: ""
+    # -- Name of an existing Secret holding the session signing key, used
+    # instead of `secretKey` when set.
+    existingSecret: ""
+    # -- Key within `existingSecret` holding the session signing key.
+    existingSecretKey: "secretKey"
+    # -- Name of the session cookie.
+    cookieName: "aobp_session"
+    # -- Session cookie lifetime, in seconds.
+    maxAgeSeconds: 1209600
+
+  # -- Directory the bundled EVE SDE data is read from at migration time.
+  # Only override this if you're mounting a custom SDE dataset.
+  sdeDataDir: "app/data/sde"
+  # -- Run pending database migrations (including the initial SDE import)
+  # automatically on startup.
+  runMigrationsOnStartup: true
 
   service:
     # -- Port the Service listens on and forwards to the container's 8000.
@@ -132,3 +210,12 @@ redis:
     limits:
       cpu: 100m
       memory: 128Mi
+
+  # -- External Redis URL for the app to use when `enabled` is false but
+  # you still want the read-through cache backed by a Redis instance
+  # outside the cluster. Ignored (and REDIS_ENABLED left off) when both
+  # this and `enabled` are unset/false.
+  url: ""
+  # -- How long cached SDE/location lookups are kept, in seconds. Only
+  # relevant when Redis is enabled (bundled or external).
+  cacheTtlSeconds: 86400
