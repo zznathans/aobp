@@ -30,7 +30,10 @@ used by the app as an optional cache to cut down on MongoDB reads for
 reference data. It's not a hard dependency of the app — nothing else in the
 cluster needs to know about it, and there's no persistence/PVC since it's
 purely a cache. Point the app at an external Redis instead via `redis.url`
-(leaving `redis.enabled` false).
+(leaving `redis.enabled` false). Optionally (`redis.exporter.enabled`) also
+runs a `redis_exporter` sidecar in the Redis pod, exposing Prometheus-compatible
+metrics; `redis.exporter.serviceMonitor.enabled` deploys a `ServiceMonitor` for
+it, same as the app's own (requires the Prometheus Operator CRDs).
 
 Optionally (`eveBuild.metrics.enabled`) the app exposes Prometheus-compatible
 metrics at `GET /metrics`. Optionally (`eveBuild.metrics.serviceMonitor.enabled`)
@@ -115,6 +118,12 @@ table.
 | mongodb.version | string | `"7.0.14"` | MongoDB server version to run. |
 | redis.cacheTtlSeconds | int | `86400` | How long cached SDE/location lookups are kept, in seconds. Only relevant when Redis is enabled (bundled or external). |
 | redis.enabled | bool | `false` | Deploy a Redis instance for this release. The app uses it as an optional read-through cache for reference data (SDE type/blueprint lookups, resolved location names) to cut down on MongoDB reads - it's not a hard dependency, the app falls back to querying MongoDB directly if Redis is disabled or unreachable. |
+| redis.exporter.enabled | bool | `false` | Deploy a redis_exporter sidecar alongside the bundled Redis instance, exposing Prometheus-compatible metrics at :9121/metrics. Only applies when `redis.enabled` is true (bundled Redis) - there's nothing to sidecar onto for an external Redis. |
+| redis.exporter.resources | object | `{"limits":{"cpu":"50m","memory":"32Mi"},"requests":{"cpu":"10m","memory":"16Mi"}}` | Resource requests and limits for the redis-exporter container. |
+| redis.exporter.serviceMonitor.enabled | bool | `false` | Deploy a ServiceMonitor for Prometheus Operator to scrape the exporter automatically. Requires the Prometheus Operator CRDs already installed in the cluster, and `redis.exporter.enabled`. |
+| redis.exporter.serviceMonitor.interval | string | `"30s"` | Scrape interval. |
+| redis.exporter.serviceMonitor.labels | object | `{}` | Extra labels on the ServiceMonitor (e.g. for a Prometheus instance's serviceMonitorSelector). |
+| redis.exporter.version | string | `"v1.66.0"` | redis_exporter image tag to run. |
 | redis.resources | object | `{"limits":{"cpu":"100m","memory":"128Mi"},"requests":{"cpu":"25m","memory":"32Mi"}}` | Resource requests and limits for the redis container. |
 | redis.url | string | `""` | External Redis URL for the app to use when `enabled` is false but you still want the read-through cache backed by a Redis instance outside the cluster. Ignored (and REDIS_ENABLED left off) when both this and `enabled` are unset/false. |
 | redis.version | string | `"7.4-alpine"` | Redis image tag to run. |

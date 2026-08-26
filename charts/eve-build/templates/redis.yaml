@@ -29,16 +29,41 @@ spec:
               drop: ["ALL"]
           resources:
             {{- toYaml .Values.redis.resources | nindent 12 }}
+        {{- if .Values.redis.exporter.enabled }}
+        - name: redis-exporter
+          image: oliver006/redis_exporter:{{ .Values.redis.exporter.version }}
+          ports:
+            - name: metrics
+              containerPort: 9121
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 999
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            {{- toYaml .Values.redis.exporter.resources | nindent 12 }}
+        {{- end }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ .Release.Name }}-redis
   namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-redis
 spec:
   selector:
     app: {{ .Release.Name }}-redis
   ports:
-    - port: 6379
+    - name: redis
+      port: 6379
       targetPort: 6379
+    {{- if .Values.redis.exporter.enabled }}
+    - name: metrics
+      port: 9121
+      targetPort: metrics
+    {{- end }}
 {{- end }}
