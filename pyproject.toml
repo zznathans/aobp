@@ -18,7 +18,7 @@ dependencies = [
     "itsdangerous>=2.1",
     "pyjwt[crypto]>=2.8",
     "pymongo>=4.6,<5.0",
-    "redis>=5.0,<6.0",
+    "redis>=5.0,<9.0",
     "prometheus-fastapi-instrumentator>=8.0,<9.0",
 ]
 
