@@ -16,6 +16,7 @@ def test_metrics_endpoint_when_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("METRICS_ENABLED", "true")
     monkeypatch.setenv("RUN_MIGRATIONS_ON_STARTUP", "false")
     monkeypatch.setenv("REDIS_ENABLED", "false")
+    monkeypatch.setenv("METRICS_DB_GAUGES_ENABLED", "false")
     get_settings.cache_clear()
     importlib.reload(app.main)
     try:
@@ -23,6 +24,7 @@ def test_metrics_endpoint_when_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
             response = test_client.get("/metrics")
         assert response.status_code == 200
         assert b"# HELP" in response.content
+        assert b"eve_build_cache_hits_total" in response.content
     finally:
         monkeypatch.setenv("METRICS_ENABLED", "false")
         get_settings.cache_clear()
@@ -33,6 +35,7 @@ def test_health_still_works_when_metrics_enabled(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setenv("METRICS_ENABLED", "true")
     monkeypatch.setenv("RUN_MIGRATIONS_ON_STARTUP", "false")
     monkeypatch.setenv("REDIS_ENABLED", "false")
+    monkeypatch.setenv("METRICS_DB_GAUGES_ENABLED", "false")
     get_settings.cache_clear()
     importlib.reload(app.main)
     try:

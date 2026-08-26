@@ -1,11 +1,40 @@
 from dataclasses import dataclass
+from time import monotonic
 from typing import Any
 
 import httpx
+from prometheus_client import Counter, Histogram
 
 from app.core.config import Settings
 
 _STATION_ID_MAX = 64_000_000_000
+
+ESI_REQUEST_DURATION = Histogram(
+    "eve_build_esi_request_duration_seconds", "ESI HTTP request duration", ["endpoint"]
+)
+ESI_REQUEST_ERRORS = Counter(
+    "eve_build_esi_request_errors_total", "ESI HTTP requests that raised an error", ["endpoint"]
+)
+
+
+async def _timed_get(
+    client: httpx.AsyncClient,
+    url: str,
+    *,
+    endpoint: str,
+    params: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+) -> httpx.Response:
+    start = monotonic()
+    try:
+        response = await client.get(url, params=params, headers=headers)
+        response.raise_for_status()
+        return response
+    except httpx.HTTPError:
+        ESI_REQUEST_ERRORS.labels(endpoint=endpoint).inc()
+        raise
+    finally:
+        ESI_REQUEST_DURATION.labels(endpoint=endpoint).observe(monotonic() - start)
 
 
 @dataclass(frozen=True)
@@ -54,19 +83,23 @@ def _headers(settings: Settings, access_token: str | None) -> dict[str, str]:
     return headers
 
 
-async def _get_all_pages(settings: Settings, access_token: str, path: str) -> list[dict[str, Any]]:
+async def _get_all_pages(
+    settings: Settings, access_token: str, path: str, *, endpoint: str
+) -> list[dict[str, Any]]:
     url = f"{settings.esi_base_url}{path}"
     headers = _headers(settings, access_token)
 
     async with httpx.AsyncClient() as client:
-        first_response = await client.get(url, params={"page": 1}, headers=headers)
-        first_response.raise_for_status()
+        first_response = await _timed_get(
+            client, url, endpoint=endpoint, params={"page": 1}, headers=headers
+        )
         results: list[dict[str, Any]] = list(first_response.json())
         total_pages = int(first_response.headers.get("X-Pages", "1"))
 
         for page in range(2, total_pages + 1):
-            response = await client.get(url, params={"page": page}, headers=headers)
-            response.raise_for_status()
+            response = await _timed_get(
+                client, url, endpoint=endpoint, params={"page": page}, headers=headers
+            )
             results.extend(response.json())
 
     return results
@@ -76,7 +109,10 @@ async def get_character_blueprints(
     settings: Settings, access_token: str, character_id: int
 ) -> list[BlueprintEntry]:
     raw_entries = await _get_all_pages(
-        settings, access_token, f"/characters/{character_id}/blueprints"
+        settings,
+        access_token,
+        f"/characters/{character_id}/blueprints",
+        endpoint="characters/blueprints",
     )
     return [
         BlueprintEntry(
@@ -96,7 +132,12 @@ async def get_character_blueprints(
 async def get_character_assets(
     settings: Settings, access_token: str, character_id: int
 ) -> list[AssetEntry]:
-    raw_entries = await _get_all_pages(settings, access_token, f"/characters/{character_id}/assets")
+    raw_entries = await _get_all_pages(
+        settings,
+        access_token,
+        f"/characters/{character_id}/assets",
+        endpoint="characters/assets",
+    )
     return [
         AssetEntry(
             item_id=entry["item_id"],
@@ -118,8 +159,9 @@ async def get_character_industry_jobs(
     headers = _headers(settings, access_token)
 
     async with httpx.AsyncClient() as client:
-        response = await client.get(url, headers=headers)
-        response.raise_for_status()
+        response = await _timed_get(
+            client, url, endpoint="characters/industry_jobs", headers=headers
+        )
 
     return [
         IndustryJobEntry(
@@ -149,8 +191,7 @@ async def get_market_prices(settings: Settings) -> list[MarketPriceEntry]:
     headers = _headers(settings, None)
 
     async with httpx.AsyncClient() as client:
-        response = await client.get(url, headers=headers)
-        response.raise_for_status()
+        response = await _timed_get(client, url, endpoint="markets/prices", headers=headers)
 
     return [
         MarketPriceEntry(
@@ -166,14 +207,17 @@ async def get_location_name(settings: Settings, access_token: str, location_id: 
     if location_id < _STATION_ID_MAX:
         path = f"/universe/stations/{location_id}"
         headers = _headers(settings, None)
+        endpoint = "universe/stations"
     else:
         path = f"/universe/structures/{location_id}"
         headers = _headers(settings, access_token)
+        endpoint = "universe/structures"
 
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(f"{settings.esi_base_url}{path}", headers=headers)
-            response.raise_for_status()
+            response = await _timed_get(
+                client, f"{settings.esi_base_url}{path}", endpoint=endpoint, headers=headers
+            )
         except httpx.HTTPStatusError:
             return None
 

@@ -1,8 +1,16 @@
 import respx
 from httpx import Response
+from prometheus_client import Histogram
 
 from app.core.config import Settings
 from app.services import esi
+
+
+def _histogram_count(histogram: Histogram, **labels: str) -> float:
+    for sample in next(iter(histogram.collect())).samples:
+        if sample.name.endswith("_count") and sample.labels == labels:
+            return sample.value
+    return 0.0
 
 
 @respx.mock
@@ -106,3 +114,30 @@ async def test_get_location_name_returns_none_on_forbidden() -> None:
     name = await esi.get_location_name(settings, "token", 1000000000123)
 
     assert name is None
+
+
+@respx.mock
+async def test_get_market_prices_records_request_duration() -> None:
+    settings = Settings()
+    respx.get(f"{settings.esi_base_url}/markets/prices").mock(return_value=Response(200, json=[]))
+    count_before = _histogram_count(esi.ESI_REQUEST_DURATION, endpoint="markets/prices")
+
+    await esi.get_market_prices(settings)
+
+    assert _histogram_count(esi.ESI_REQUEST_DURATION, endpoint="markets/prices") == count_before + 1
+
+
+@respx.mock
+async def test_get_location_name_records_error_on_forbidden() -> None:
+    settings = Settings()
+    respx.get(f"{settings.esi_base_url}/universe/structures/1000000000123").mock(
+        return_value=Response(403, json={"error": "no access"})
+    )
+    errors_before = esi.ESI_REQUEST_ERRORS.labels(endpoint="universe/structures")._value.get()
+
+    await esi.get_location_name(settings, "token", 1000000000123)
+
+    assert (
+        esi.ESI_REQUEST_ERRORS.labels(endpoint="universe/structures")._value.get()
+        == errors_before + 1
+    )

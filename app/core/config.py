@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     redis_cache_ttl_seconds: int = 60 * 60 * 24
 
     metrics_enabled: bool = False
+    metrics_db_gauges_enabled: bool = True
+    metrics_gauge_refresh_seconds: int = 300
 
     session_secret_key: str = "insecure-dev-secret-change-me"
     session_cookie_name: str = "eve_build_session"
