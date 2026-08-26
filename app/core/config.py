@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     esi_compatibility_date: str = "2026-08-18"
     esi_user_agent: str = "aobp"
 
+    market_prices_refresh_api_key: str = ""
+
     mongodb_uri: str = "mongodb://localhost:27017"
     mongodb_database: str = "aobp"
 

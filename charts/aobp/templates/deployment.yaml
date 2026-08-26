@@ -2,6 +2,8 @@
 {{- $redisUrl := .Values.redis.enabled | ternary (printf "redis://%s-redis:6379/0" .Release.Name) .Values.redis.url }}
 {{- $sessionSecretName := .Values.aobp.session.existingSecret | default (printf "%s-session" .Release.Name) }}
 {{- $sessionSecretKey := (ne .Values.aobp.session.existingSecret "") | ternary .Values.aobp.session.existingSecretKey "secretKey" }}
+{{- $marketPricesSecretName := .Values.aobp.marketPrices.existingSecret | default (printf "%s-market-prices" .Release.Name) }}
+{{- $marketPricesSecretKey := (ne .Values.aobp.marketPrices.existingSecret "") | ternary .Values.aobp.marketPrices.existingSecretKey "apiKey" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -111,6 +113,11 @@ spec:
               value: {{ .Values.aobp.session.cookieName | quote }}
             - name: SESSION_MAX_AGE_SECONDS
               value: {{ .Values.aobp.session.maxAgeSeconds | int | quote }}
+            - name: MARKET_PRICES_REFRESH_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $marketPricesSecretName }}
+                  key: {{ $marketPricesSecretKey }}
             {{- with .Values.aobp.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
