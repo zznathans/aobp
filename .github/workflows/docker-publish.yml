@@ -4,9 +4,16 @@ name: Docker Publish
 # the image tag lines up with a real version rather than every commit to
 # main - cut a release to publish. docker-build.yml (push/PR) stays
 # build-only verification and is unaffected by this.
+#
+# workflow_dispatch is a fallback for re-running a publish whose
+# release:published event never arrived (e.g. an Actions outage) - dispatch
+# it against the release tag itself (`gh workflow run docker-publish.yml
+# --ref <tag>`) so github.ref/metadata-action's inferred tags match a real
+# release event exactly; no separate input needed.
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
