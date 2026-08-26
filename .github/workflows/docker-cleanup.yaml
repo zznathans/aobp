@@ -1,5 +1,8 @@
 name: Remove package versions
 on: push
+permissions:
+  contents: read
+  packages: write
 jobs:
   remove-package-versions:
     runs-on: ubuntu-latest
