@@ -12,7 +12,14 @@ from app.db.redis import get_redis
 from app.deps import get_current_character_optional
 from app.models.character import CharacterDocument
 from app.services import character_data, esi, industry, locations, sde
-from app.web import gauge_cell_html, humanize_relative_time, icon_url, render_page
+from app.services.locations import LocationInfo
+from app.web import (
+    gauge_cell_html,
+    humanize_relative_time,
+    icon_url,
+    location_label_html,
+    render_page,
+)
 
 router = APIRouter()
 
@@ -83,7 +90,7 @@ def _render_dashboard(
     asset_count: int,
     active_jobs: list[esi.IndustryJobEntry],
     blueprint_type_docs: dict[int, dict[str, object]],
-    job_location_names: dict[int, str | None],
+    job_location_info: dict[int, LocationInfo],
 ) -> str:
     def _job_row(job: esi.IndustryJobEntry) -> str:
         blueprint_name = escape(
@@ -93,8 +100,8 @@ def _render_dashboard(
                 )
             )
         )
-        location_label = escape(
-            job_location_names.get(job.facility_id) or f"Location {job.facility_id}"
+        location_label = location_label_html(
+            job.facility_id, job_location_info.get(job.facility_id)
         )
         job_href = escape(f"/jobs/{job.job_id}")
         activity_name = escape(
@@ -131,10 +138,10 @@ def _render_dashboard(
           <div class="figure">{blueprint_count}</div>
           <div class="label">Blueprints</div>
         </a>
-        <div class="stat-card">
+        <a class="stat-card" href="/assets">
           <div class="figure">{asset_count}</div>
           <div class="label">Assets</div>
-        </div>
+        </a>
         <div class="stat-card">
           <div class="figure">{len(active_jobs)}</div>
           <div class="label">Running industry jobs</div>
@@ -177,7 +184,7 @@ async def read_root(
     blueprint_type_docs = await sde.type_docs(
         db, redis, settings, {job.blueprint_type_id for job in active_jobs}
     )
-    job_location_names = await locations.resolve_location_names(
+    job_location_info = await locations.resolve_location_info(
         db, redis, settings, character.access_token, {job.facility_id for job in active_jobs}
     )
 
@@ -188,7 +195,7 @@ async def read_root(
             len(assets),
             active_jobs,
             blueprint_type_docs,
-            job_location_names,
+            job_location_info,
         )
     )
 

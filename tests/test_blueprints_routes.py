@@ -233,6 +233,31 @@ async def test_list_blueprints_shows_owned_blueprint(
     assert "<th>Location</th>" in response.text
 
 
+@respx.mock
+async def test_list_blueprints_shows_location_security_status(
+    client: TestClient,
+    test_settings: Settings,
+    mongo_db: AsyncMongoMockClient,
+    rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+) -> None:
+    system_id = 30000142
+    _log_in(client, test_settings, rsa_key_pair)
+    await _seed_sde(mongo_db)
+    _mock_blueprints(test_settings)
+    _mock_assets(test_settings, on_site=6, elsewhere=20)
+    respx.get(f"{test_settings.esi_base_url}/universe/stations/{STATION_ID}").mock(
+        return_value=Response(200, json={"name": "Jita IV - Moon 4", "system_id": system_id})
+    )
+    respx.get(f"{test_settings.esi_base_url}/universe/systems/{system_id}").mock(
+        return_value=Response(200, json={"security_status": 0.9459991455078125})
+    )
+
+    response = client.get("/blueprints")
+
+    assert response.status_code == 200
+    assert 'Jita IV - Moon 4 (<span style="color: #48f0c0;">0.9</span>)' in response.text
+
+
 def _asset(item_id: int, location_id: int, location_type: str) -> AssetEntry:
     return AssetEntry(
         item_id=item_id,

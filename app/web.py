@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from html import escape
 
 from app.models.character import CharacterDocument
+from app.services.locations import LocationInfo
 
 BASE_STYLE = """
   :root { color-scheme: dark; }
@@ -110,6 +111,73 @@ def icon_url(type_id: int, is_copy: bool = False) -> str:
     return f"https://images.evetech.net/types/{type_id}/{variant}"
 
 
+def item_icon_url(type_id: int) -> str:
+    return f"https://images.evetech.net/types/{type_id}/icon"
+
+
+def format_number(value: float) -> str:
+    return f"{value:,.0f}"
+
+
+def format_isk(value: float) -> str:
+    abs_value = abs(value)
+    if abs_value >= 1_000_000_000:
+        return f"{value / 1_000_000_000:,.2f}B ISK"
+    if abs_value >= 1_000_000:
+        return f"{value / 1_000_000:,.2f}M ISK"
+    if abs_value >= 1_000:
+        return f"{value / 1_000:,.1f}K ISK"
+    return f"{value:,.0f} ISK"
+
+
+def security_status_color(security_status: float) -> str:
+    # Standard EVE Online security-status color bands, high-sec (green/cyan) down to
+    # low-sec (orange) - null-sec and negative statuses fall through to the same red.
+    thresholds = (
+        (1.0, "#2fefef"),
+        (0.9, "#48f0c0"),
+        (0.8, "#00ef47"),
+        (0.7, "#00f000"),
+        (0.6, "#8fef2f"),
+        (0.5, "#efef00"),
+        (0.4, "#d77700"),
+        (0.3, "#f06000"),
+        (0.2, "#f04000"),
+        (0.1, "#f00000"),
+    )
+    for threshold, color in thresholds:
+        if security_status >= threshold:
+            return color
+    return "#f00000"
+
+
+def _rounded_security_status(security_status: float) -> float:
+    rounded = round(security_status, 1)
+    return 0.0 if rounded == 0 else rounded  # avoid rendering "-0.0" for values that round to zero
+
+
+def security_status_html(security_status: float) -> str:
+    rounded = _rounded_security_status(security_status)
+    color = security_status_color(rounded)
+    return f'<span style="color: {color};">{rounded:.1f}</span>'
+
+
+def location_label_html(location_id: int, info: LocationInfo | None) -> str:
+    label = escape(info.name) if info and info.name else escape(f"Location {location_id}")
+    if info is None or info.security_status is None:
+        return label
+    return f"{label} ({security_status_html(info.security_status)})"
+
+
+def location_label_text(location_id: int, info: LocationInfo | None) -> str:
+    """Same as location_label_html, but plain text - for contexts like <option> that can't
+    render markup."""
+    label = info.name if info and info.name else f"Location {location_id}"
+    if info is None or info.security_status is None:
+        return label
+    return f"{label} ({_rounded_security_status(info.security_status):.1f})"
+
+
 def humanize_relative_time(target: datetime) -> str:
     seconds = (target - datetime.now(UTC)).total_seconds()
     if seconds <= 0:
@@ -150,6 +218,7 @@ def render_nav(character: CharacterDocument | None) -> str:
         <div class="nav-links">
           <a href="/">Home</a>
           <a href="/blueprints">Blueprints</a>
+          <a href="/assets">Assets</a>
         </div>
         <div class="nav-user">
           <img class="nav-avatar" src="{avatar_url}" alt="{character_name}">

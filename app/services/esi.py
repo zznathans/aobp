@@ -203,7 +203,15 @@ async def get_market_prices(settings: Settings) -> list[MarketPriceEntry]:
     ]
 
 
-async def get_location_name(settings: Settings, access_token: str, location_id: int) -> str | None:
+@dataclass(frozen=True)
+class LocationDetails:
+    name: str | None
+    system_id: int | None
+
+
+async def get_location_details(
+    settings: Settings, access_token: str, location_id: int
+) -> LocationDetails:
     if location_id < _STATION_ID_MAX:
         path = f"/universe/stations/{location_id}"
         headers = _headers(settings, None)
@@ -219,7 +227,29 @@ async def get_location_name(settings: Settings, access_token: str, location_id: 
                 client, f"{settings.esi_base_url}{path}", endpoint=endpoint, headers=headers
             )
         except httpx.HTTPStatusError:
+            return LocationDetails(name=None, system_id=None)
+
+    data = response.json()
+    name = data.get("name")
+    system_id = data.get("system_id")
+    return LocationDetails(
+        name=name if isinstance(name, str) else None,
+        system_id=system_id if isinstance(system_id, int) else None,
+    )
+
+
+async def get_system_security_status(settings: Settings, system_id: int) -> float | None:
+    headers = _headers(settings, None)
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await _timed_get(
+                client,
+                f"{settings.esi_base_url}/universe/systems/{system_id}",
+                endpoint="universe/systems",
+                headers=headers,
+            )
+        except httpx.HTTPStatusError:
             return None
 
-    name = response.json().get("name")
-    return name if isinstance(name, str) else None
+    security_status = response.json().get("security_status")
+    return float(security_status) if isinstance(security_status, int | float) else None
