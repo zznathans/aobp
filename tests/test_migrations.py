@@ -43,16 +43,24 @@ _INV_GROUPS_FIXTURE: list[dict[str, object]] = [
     {"groupID": 25, "categoryID": 6},
 ]
 
+_INV_CATEGORIES_FIXTURE: list[dict[str, object]] = [
+    {"categoryID": 4, "categoryName": "Material"},
+    {"categoryID": 6, "categoryName": "Ship"},
+]
+
 
 def _write_fixtures(data_dir: Path) -> None:
     data_dir.mkdir(parents=True, exist_ok=True)
     for table_name, rows in _TABLE_FIXTURES.items():
         with gzip.open(data_dir / f"{table_name}.json.gz", "wt", encoding="utf-8") as fh:
             json.dump(rows, fh)
-    # invGroups isn't one of the raw tables 0001 imports (nothing else needs the full table) -
-    # 0004 reads it straight off disk, so it needs its own fixture file rather than a Mongo one.
+    # invGroups/invCategories aren't among the raw tables 0001 imports (nothing else reads the
+    # full tables) - 0004/0005 read them straight off disk, so they need their own fixture
+    # files rather than a Mongo one.
     with gzip.open(data_dir / "invGroups.json.gz", "wt", encoding="utf-8") as fh:
         json.dump(_INV_GROUPS_FIXTURE, fh)
+    with gzip.open(data_dir / "invCategories.json.gz", "wt", encoding="utf-8") as fh:
+        json.dump(_INV_CATEGORIES_FIXTURE, fh)
 
 
 def _settings(data_dir: Path) -> Settings:
@@ -88,6 +96,7 @@ async def test_run_migrations_populates_raw_and_lookup_collections(tmp_path: Pat
         "0002_build_sde_lookup_collections",
         "0003_add_volume_to_sde_types",
         "0004_add_category_id_to_sde_types",
+        "0005_import_sde_categories",
     }
 
     assert await db["invTypes"].count_documents({}) == 3
@@ -114,6 +123,11 @@ async def test_run_migrations_populates_raw_and_lookup_collections(tmp_path: Pat
     assert tritanium["category_id"] == 4
     assert rifter["category_id"] == 6
 
+    assert await db["sde_categories"].count_documents({}) == 2
+    ship_category = await db["sde_categories"].find_one({"_id": 6})
+    assert ship_category is not None
+    assert ship_category["name"] == "Ship"
+
 
 async def test_run_migrations_is_idempotent(tmp_path: Path) -> None:
     _write_fixtures(tmp_path)
@@ -123,7 +137,7 @@ async def test_run_migrations_is_idempotent(tmp_path: Path) -> None:
     await run_migrations(db, settings)
     await run_migrations(db, settings)
 
-    assert await db["_migrations"].count_documents({}) == 8
+    assert await db["_migrations"].count_documents({}) == 9
     assert await db["sde_blueprints"].count_documents({}) == 1
 
 
@@ -205,5 +219,6 @@ async def test_import_raw_sde_tables_resumes_after_partial_failure(
         "0002_build_sde_lookup_collections",
         "0003_add_volume_to_sde_types",
         "0004_add_category_id_to_sde_types",
+        "0005_import_sde_categories",
     }
     assert await db["invTypes"].count_documents({}) == 3
