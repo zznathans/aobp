@@ -14,7 +14,7 @@ from app.db.mongo import get_database
 from app.db.redis import get_redis
 from app.deps import get_current_character
 from app.models.character import CharacterDocument
-from app.services import esi, locations, sde
+from app.services import character_data, esi, locations, sde
 from app.web import gauge_cell_html, icon_url, render_page
 
 router = APIRouter(prefix="/blueprints", tags=["blueprints"])
@@ -218,8 +218,8 @@ async def list_blueprints(
     sort = sort if sort in _SORT_COLUMNS else "name"
     direction = dir if dir in ("asc", "desc") else "asc"
 
-    blueprints = await esi.get_character_blueprints(
-        settings, character.access_token, character.character_id
+    blueprints = await character_data.get_character_blueprints(
+        db, redis, settings, character.access_token, character.character_id
     )
     type_docs = await sde.type_docs(db, redis, settings, {bp.type_id for bp in blueprints})
 
@@ -230,8 +230,8 @@ async def list_blueprints(
         )
         return HTMLResponse(render_page("Blueprints", body, _LIST_STYLE, character=character))
 
-    assets = await esi.get_character_assets(
-        settings, character.access_token, character.character_id
+    assets = await character_data.get_character_assets(
+        db, redis, settings, character.access_token, character.character_id
     )
     assets_by_item_id = {asset.item_id: asset for asset in assets}
     global_totals: dict[int, int] = {}
@@ -373,15 +373,15 @@ async def blueprint_detail(
     redis: Redis | None = Depends(get_redis),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
-    blueprints = await esi.get_character_blueprints(
-        settings, character.access_token, character.character_id
+    blueprints = await character_data.get_character_blueprints(
+        db, redis, settings, character.access_token, character.character_id
     )
     blueprint = next((bp for bp in blueprints if bp.item_id == item_id), None)
     if blueprint is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Blueprint not found")
 
-    assets = await esi.get_character_assets(
-        settings, character.access_token, character.character_id
+    assets = await character_data.get_character_assets(
+        db, redis, settings, character.access_token, character.character_id
     )
     assets_by_item_id = {asset.item_id: asset for asset in assets}
 
