@@ -115,6 +115,10 @@ def item_icon_url(type_id: int) -> str:
     return f"https://images.evetech.net/types/{type_id}/icon"
 
 
+_TRITANIUM_TYPE_ID = 34
+FAVICON_URL = item_icon_url(_TRITANIUM_TYPE_ID)
+
+
 def format_number(value: float) -> str:
     return f"{value:,.0f}"
 
@@ -243,6 +247,7 @@ def render_page(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{escape(title)}</title>
+  <link rel="icon" href="{FAVICON_URL}">
   <style>{BASE_STYLE}{extra_style}</style>
 </head>
 <body>
