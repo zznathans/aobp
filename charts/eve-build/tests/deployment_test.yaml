@@ -45,6 +45,21 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].livenessProbe.httpGet.path
           value: /health
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.path
+          value: /health
+
+  - it: gives the startup probe enough headroom to outlast a slow migration
+    asserts:
+      # periodSeconds * failureThreshold must comfortably exceed a slow first-boot
+      # migration run, or Kubernetes kills the pod mid-migration before /health ever
+      # responds - readiness/liveness only start probing once this one succeeds.
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.periodSeconds
+          value: 10
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.failureThreshold
+          value: 30
 
   - it: runs as a non-root user with hardened security context
     asserts:
