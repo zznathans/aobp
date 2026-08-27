@@ -52,3 +52,12 @@ async def blueprint_docs(
     type_ids: set[int],
 ) -> dict[int, dict[str, object]]:
     return await cached_docs_by_id(db.sde_blueprints, redis, settings, "sde_blueprint", type_ids)
+
+
+async def category_docs(
+    db: AsyncIOMotorDatabase,
+    redis: Redis | None,
+    settings: Settings,
+    category_ids: set[int],
+) -> dict[int, dict[str, object]]:
+    return await cached_docs_by_id(db.sde_categories, redis, settings, "sde_category", category_ids)

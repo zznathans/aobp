@@ -426,6 +426,111 @@ async def test_blueprint_detail_shows_price_info_per_run(
     assert '<div class="figure">100 ISK</div>' in response.text
 
 
+SHIP_BP_ITEM_ID = 2001
+SHIP_BP_TYPE_ID = 6100
+SHIP_PRODUCT_TYPE_ID = 6101
+MODULE_BP_ITEM_ID = 2002
+MODULE_BP_TYPE_ID = 6200
+MODULE_PRODUCT_TYPE_ID = 6201
+
+
+@respx.mock
+async def test_list_blueprints_groups_by_product_category(
+    client: TestClient,
+    test_settings: Settings,
+    mongo_db: AsyncMongoMockClient,
+    rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+) -> None:
+    _log_in(client, test_settings, rsa_key_pair)
+    await mongo_db.sde_types.insert_many(
+        [
+            {"_id": SHIP_BP_TYPE_ID, "name": "Widget Blueprint", "group_id": 1, "published": True},
+            {
+                "_id": MODULE_BP_TYPE_ID,
+                "name": "Gadget Blueprint",
+                "group_id": 1,
+                "published": True,
+            },
+            {"_id": SHIP_PRODUCT_TYPE_ID, "name": "Widget", "group_id": 2, "published": True},
+            {
+                "_id": MODULE_PRODUCT_TYPE_ID,
+                "name": "Gadget",
+                "group_id": 3,
+                "published": True,
+            },
+        ]
+    )
+    await mongo_db.sde_types.update_one({"_id": SHIP_PRODUCT_TYPE_ID}, {"$set": {"category_id": 6}})
+    await mongo_db.sde_types.update_one(
+        {"_id": MODULE_PRODUCT_TYPE_ID}, {"$set": {"category_id": 7}}
+    )
+    await mongo_db.sde_categories.insert_many(
+        [{"_id": 6, "name": "Ship"}, {"_id": 7, "name": "Module"}]
+    )
+    await mongo_db.sde_blueprints.insert_many(
+        [
+            {
+                "_id": SHIP_BP_TYPE_ID,
+                "product_type_id": SHIP_PRODUCT_TYPE_ID,
+                "product_quantity": 1,
+                "manufacturing_time_seconds": 600,
+                "materials": [],
+            },
+            {
+                "_id": MODULE_BP_TYPE_ID,
+                "product_type_id": MODULE_PRODUCT_TYPE_ID,
+                "product_quantity": 1,
+                "manufacturing_time_seconds": 600,
+                "materials": [],
+            },
+        ]
+    )
+    respx.get(
+        f"{test_settings.esi_base_url}/characters/{CHARACTER_ID}/blueprints", params={"page": 1}
+    ).mock(
+        return_value=Response(
+            200,
+            headers={"X-Pages": "1"},
+            json=[
+                {
+                    "item_id": SHIP_BP_ITEM_ID,
+                    "type_id": SHIP_BP_TYPE_ID,
+                    "location_id": STATION_ID,
+                    "location_flag": "Hangar",
+                    "quantity": -1,
+                    "runs": -1,
+                    "material_efficiency": 0,
+                    "time_efficiency": 0,
+                },
+                {
+                    "item_id": MODULE_BP_ITEM_ID,
+                    "type_id": MODULE_BP_TYPE_ID,
+                    "location_id": STATION_ID,
+                    "location_flag": "Hangar",
+                    "quantity": -1,
+                    "runs": -1,
+                    "material_efficiency": 0,
+                    "time_efficiency": 0,
+                },
+            ],
+        )
+    )
+    _mock_assets(test_settings, on_site=0, elsewhere=0)
+    _mock_station_name(test_settings)
+
+    response = client.get("/blueprints")
+
+    assert response.status_code == 200
+    assert "Widget Blueprint" in response.text
+    assert "Gadget Blueprint" in response.text
+    # Alphabetical order: "Module" before "Ship".
+    module_heading_index = response.text.index("<h2>Module</h2>")
+    ship_heading_index = response.text.index("<h2>Ship</h2>")
+    gadget_index = response.text.index("Gadget Blueprint")
+    widget_index = response.text.index("Widget Blueprint")
+    assert module_heading_index < gadget_index < ship_heading_index < widget_index
+
+
 @respx.mock
 async def test_blueprint_detail_retries_location_after_failed_lookup(
     client: TestClient,
@@ -501,6 +606,55 @@ async def test_list_blueprints_filters_can_reveal_copies_and_t2(
     assert "Rifter Blueprint" in response.text
     assert "Merlin Blueprint" in response.text
     assert "Crow Blueprint" in response.text
+
+
+@respx.mock
+async def test_list_blueprints_search_filters_by_name_case_insensitively(
+    client: TestClient,
+    test_settings: Settings,
+    mongo_db: AsyncMongoMockClient,
+    rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+) -> None:
+    _log_in(client, test_settings, rsa_key_pair)
+    await _seed_mixed_sde(mongo_db)
+    _mock_blueprints_mixed(test_settings)
+    _mock_assets(test_settings, on_site=0, elsewhere=0)
+    _mock_station_name(test_settings)
+
+    response = client.get(
+        "/blueprints",
+        params=[
+            ("f", "1"),
+            ("show", "original"),
+            ("show", "copy"),
+            ("show", "t2"),
+            ("search", "RIFTER"),
+        ],
+    )
+
+    assert response.status_code == 200
+    assert "Rifter Blueprint" in response.text
+    assert "Merlin Blueprint" not in response.text
+    assert "Crow Blueprint" not in response.text
+
+
+@respx.mock
+async def test_list_blueprints_search_box_preserves_typed_value(
+    client: TestClient,
+    test_settings: Settings,
+    mongo_db: AsyncMongoMockClient,
+    rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+) -> None:
+    _log_in(client, test_settings, rsa_key_pair)
+    await _seed_sde(mongo_db)
+    _mock_blueprints(test_settings)
+    _mock_assets(test_settings, on_site=0, elsewhere=0)
+    _mock_station_name(test_settings)
+
+    response = client.get("/blueprints", params={"search": "rift"})
+
+    assert response.status_code == 200
+    assert 'name="search" value="rift"' in response.text
 
 
 @respx.mock

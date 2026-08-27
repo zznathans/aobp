@@ -30,6 +30,8 @@ router = APIRouter(prefix="/blueprints", tags=["blueprints"])
 _LIST_STYLE = """
   .page { max-width: 70rem; margin: 0 auto; padding: 2rem 1.5rem; }
   h1 { font-size: 1.4rem; margin: 0 0 1.5rem; }
+  h2 { font-size: 1.05rem; margin: 1.5rem 0 0.75rem; }
+  h2:first-of-type { margin-top: 0; }
   .filters {
     display: flex; gap: 1.25rem; align-items: center;
     margin-bottom: 1.25rem; font-size: 0.85rem; color: #9aa4b2;
@@ -39,6 +41,11 @@ _LIST_STYLE = """
     margin-left: auto; background: #1a1d24; color: #e6e6e6;
     border: 1px solid #2a2e37; border-radius: 6px; padding: 0.35rem 0.5rem;
     font-size: 0.85rem;
+  }
+  .filters input[type="text"] {
+    background: #1a1d24; color: #e6e6e6;
+    border: 1px solid #2a2e37; border-radius: 6px; padding: 0.35rem 0.5rem;
+    font-size: 0.85rem; width: 14rem;
   }
   .bp-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
   .bp-table th, .bp-table td {
@@ -123,9 +130,13 @@ _SORT_LABELS = {
 }
 
 
+_OTHER_CATEGORY = "Other"
+
+
 @dataclass
 class _Row:
     name: str
+    search_name: str
     is_copy: bool
     is_t2: bool
     me: int
@@ -133,22 +144,31 @@ class _Row:
     on_site_pct: float
     global_pct: float
     location_id: int
+    category: str
     html: str
 
 
-def _query_string(selected: frozenset[str], sort: str, direction: str, location: str) -> str:
+def _query_string(
+    selected: frozenset[str], sort: str, direction: str, location: str, search: str
+) -> str:
     params = [
         ("f", "1"),
         *[("show", value) for value in selected],
         ("sort", sort),
         ("dir", direction),
         *([("location", location)] if location else []),
+        *([("search", search)] if search else []),
     ]
     return urlencode(params)
 
 
 def _sort_header(
-    column: str, selected: frozenset[str], current_sort: str, current_dir: str, location: str
+    column: str,
+    selected: frozenset[str],
+    current_sort: str,
+    current_dir: str,
+    location: str,
+    search: str,
 ) -> str:
     label = _SORT_LABELS[column]
     if column == current_sort:
@@ -156,7 +176,7 @@ def _sort_header(
         label += " &#9650;" if current_dir == "asc" else " &#9660;"
     else:
         next_dir = "asc"
-    href = escape(f"?{_query_string(selected, column, next_dir, location)}")
+    href = escape(f"?{_query_string(selected, column, next_dir, location, search)}")
     return f'<th><a href="{href}">{label}</a></th>'
 
 
@@ -165,6 +185,7 @@ def _render_filters_form(
     sort: str,
     direction: str,
     location: str,
+    search: str,
     location_options: list[tuple[int, str]],
 ) -> str:
     checkboxes_html = "".join(f"""<label>
@@ -185,6 +206,7 @@ def _render_filters_form(
         <input type="hidden" name="f" value="1">
         <input type="hidden" name="sort" value="{escape(sort)}">
         <input type="hidden" name="dir" value="{escape(direction)}">
+        <input type="text" name="search" value="{escape(search)}" placeholder="Search by name">
         {checkboxes_html}
         <select name="location" onchange="this.form.submit()">
           <option value="">All locations</option>
@@ -205,22 +227,41 @@ async def list_blueprints(
     sort: str = Query(default="name"),
     dir: str = Query(default="asc"),  # noqa: A002
     location: str = Query(default=""),
+    search: str = Query(default=""),
 ) -> HTMLResponse:
     selected = frozenset(show) & set(_FILTER_OPTIONS) if f is not None else _DEFAULT_FILTERS
     sort = sort if sort in _SORT_COLUMNS else "name"
     direction = dir if dir in ("asc", "desc") else "asc"
+    search_query = search.strip().lower()
 
     blueprints = await character_data.get_character_blueprints(
         db, redis, settings, character.access_token, character.character_id
     )
-    type_docs = await sde.type_docs(db, redis, settings, {bp.type_id for bp in blueprints})
 
     if not blueprints:
-        filters_form = _render_filters_form(selected, sort, direction, location, [])
+        filters_form = _render_filters_form(selected, sort, direction, location, search, [])
         body = f'<div class="page"><h1>Blueprints</h1>{filters_form}' + (
             '<p class="empty">No blueprints found.</p></div>'
         )
         return HTMLResponse(render_page("Blueprints", body, _LIST_STYLE, character=character))
+
+    sde_by_type_id = await sde.blueprint_docs(
+        db, redis, settings, {bp.type_id for bp in blueprints}
+    )
+    product_type_ids = {
+        cast(int, sde_doc["product_type_id"])
+        for sde_doc in sde_by_type_id.values()
+        if sde_doc.get("product_type_id") is not None
+    }
+    type_docs = await sde.type_docs(
+        db, redis, settings, {bp.type_id for bp in blueprints} | product_type_ids
+    )
+    category_ids = {
+        cast(int, type_docs[product_type_id]["category_id"])
+        for product_type_id in product_type_ids
+        if type_docs.get(product_type_id, {}).get("category_id") is not None
+    }
+    category_docs = await sde.category_docs(db, redis, settings, category_ids)
 
     assets = await character_data.get_character_assets(
         db, redis, settings, character.access_token, character.character_id
@@ -233,10 +274,6 @@ async def list_blueprints(
         location_totals = assets_by_location.setdefault(asset.location_id, {})
         location_totals[asset.type_id] = location_totals.get(asset.type_id, 0) + asset.quantity
 
-    sde_by_type_id = await sde.blueprint_docs(
-        db, redis, settings, {bp.type_id for bp in blueprints}
-    )
-
     resolved_location_by_item_id = {
         bp.item_id: _resolve_container_chain(bp.location_id, assets_by_item_id) for bp in blueprints
     }
@@ -248,7 +285,8 @@ async def list_blueprints(
     for bp in blueprints:
         is_copy = bp.quantity == -2 or bp.runs != -1
         type_doc = type_docs.get(bp.type_id, {})
-        name = escape(str(type_doc.get("name", f"Type {bp.type_id}")))
+        raw_name = str(type_doc.get("name", f"Type {bp.type_id}"))
+        name = escape(raw_name)
         is_t2 = type_doc.get("tech_level") == 2
         sub = "Copy" if is_copy else "Original"
         if is_copy:
@@ -267,6 +305,18 @@ async def list_blueprints(
         else:
             on_site_pct = global_pct = -1.0
             on_site_gauge = global_gauge = '<span class="empty">&mdash;</span>'
+
+        product_type_id = sde_doc.get("product_type_id") if sde_doc is not None else None
+        product_category_id = (
+            type_docs.get(cast(int, product_type_id), {}).get("category_id")
+            if product_type_id is not None
+            else None
+        )
+        category = _OTHER_CATEGORY
+        if product_category_id is not None:
+            category_name = category_docs.get(cast(int, product_category_id), {}).get("name")
+            if category_name:
+                category = str(category_name)
 
         me_gauge = gauge_cell_html(
             100.0 * bp.material_efficiency / 10, f"{bp.material_efficiency}/10"
@@ -299,6 +349,7 @@ async def list_blueprints(
         parsed_rows.append(
             _Row(
                 name=name,
+                search_name=raw_name.lower(),
                 is_copy=is_copy,
                 is_t2=bool(is_t2),
                 me=bp.material_efficiency,
@@ -306,6 +357,7 @@ async def list_blueprints(
                 on_site_pct=on_site_pct,
                 global_pct=global_pct,
                 location_id=resolved_location_id,
+                category=category,
                 html=row_html,
             )
         )
@@ -317,7 +369,9 @@ async def list_blueprints(
         },
         key=lambda option: option[1].lower(),
     )
-    filters_form = _render_filters_form(selected, sort, direction, location, location_options)
+    filters_form = _render_filters_form(
+        selected, sort, direction, location, search, location_options
+    )
 
     visible_rows = [
         row
@@ -325,6 +379,7 @@ async def list_blueprints(
         if ("copy" in selected if row.is_copy else "original" in selected)
         and (not row.is_t2 or "t2" in selected)
         and (not location or str(row.location_id) == location)
+        and (not search_query or search_query in row.search_name)
     ]
 
     sort_keys = {
@@ -337,24 +392,45 @@ async def list_blueprints(
     visible_rows.sort(key=sort_keys[sort], reverse=(direction == "desc"))
 
     headers = (
-        _sort_header("name", selected, sort, direction, location)
+        _sort_header("name", selected, sort, direction, location, search)
         + "<th>Location</th>"
         + "".join(
-            _sort_header(column, selected, sort, direction, location)
+            _sort_header(column, selected, sort, direction, location, search)
             for column in _SORT_COLUMNS[1:]
         )
     )
-    rows_html = "".join(row.html for row in visible_rows) or (
-        '<tr><td colspan="6" class="empty">No blueprints match the current filters.</td></tr>'
-    )
+    if not visible_rows:
+        sections = f"""
+          <table class="bp-table">
+            <thead><tr>{headers}</tr></thead>
+            <tbody>
+              <tr><td colspan="6" class="empty">No blueprints match the current filters.</td></tr>
+            </tbody>
+          </table>
+        """
+    else:
+        rows_by_category: dict[str, list[_Row]] = {}
+        for row in visible_rows:
+            rows_by_category.setdefault(row.category, []).append(row)
+
+        category_names = sorted(
+            (name for name in rows_by_category if name != _OTHER_CATEGORY), key=str.lower
+        )
+        if _OTHER_CATEGORY in rows_by_category:
+            category_names.append(_OTHER_CATEGORY)
+
+        sections = "".join(f"""
+              <h2>{escape(category_name)}</h2>
+              <table class="bp-table">
+                <thead><tr>{headers}</tr></thead>
+                <tbody>{"".join(row.html for row in rows_by_category[category_name])}</tbody>
+              </table>
+            """ for category_name in category_names)
 
     body = f"""<div class="page">
       <h1>Blueprints</h1>
       {filters_form}
-      <table class="bp-table">
-        <thead><tr>{headers}</tr></thead>
-        <tbody>{rows_html}</tbody>
-      </table>
+      {sections}
     </div>"""
     return HTMLResponse(render_page("Blueprints", body, _LIST_STYLE, character=character))
 
