@@ -134,7 +134,8 @@ def _render_dashboard(
           <tr>
             <td>
               <a class="job-bp" href="{job_href}">
-                <img class="icon" src="{job_icon_url}" alt="{blueprint_name}">
+                <img class="icon" src="{job_icon_url}" alt="{blueprint_name}"
+                  onerror="this.style.visibility='hidden'">
                 <span>{blueprint_name}</span>
               </a>
             </td>

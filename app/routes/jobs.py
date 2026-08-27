@@ -70,9 +70,11 @@ async def job_detail(
         )
         product_row = f"<dt>Product</dt><dd>{product_name}</dd>"
 
+    job_icon_url = escape(icon_url(job.blueprint_type_id))
     header = f"""
       <div class="header">
-        <img class="icon" src="{escape(icon_url(job.blueprint_type_id))}" alt="{blueprint_name}">
+        <img class="icon" src="{job_icon_url}" alt="{blueprint_name}"
+          onerror="this.style.visibility='hidden'">
         <div>
           <div class="name">{blueprint_name}</div>
           <div class="meta">{activity_name} &middot; {status_label}</div>

@@ -272,11 +272,13 @@ async def list_blueprints(
         )
 
         item_href = escape(f"/blueprints/{bp.item_id}")
+        bp_icon_url = escape(icon_url(bp.type_id, is_copy))
         row_html = f"""
           <tr>
             <td>
               <a class="bp-link" href="{item_href}">
-                <img class="icon" src="{escape(icon_url(bp.type_id, is_copy))}" alt="{name}">
+                <img class="icon" src="{bp_icon_url}" alt="{name}"
+                  onerror="this.style.visibility='hidden'">
                 <div><div class="name">{name}</div><div class="sub">{sub}</div></div>
               </a>
             </td>
@@ -388,7 +390,8 @@ async def blueprint_detail(
 
     header = f"""
       <div class="header">
-        <img class="icon" src="{blueprint_icon_url}" alt="{blueprint_name}">
+        <img class="icon" src="{blueprint_icon_url}" alt="{blueprint_name}"
+          onerror="this.style.visibility='hidden'">
         <div>
           <div class="name">{blueprint_name}</div>
           <div class="meta">ME {blueprint.material_efficiency} / TE {blueprint.time_efficiency}
