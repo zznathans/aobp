@@ -1,14 +1,19 @@
 from collections.abc import Awaitable, Callable
 from dataclasses import asdict
 from datetime import UTC, datetime
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from redis.asyncio import Redis
 
 from app.services import cache
 
-T = TypeVar("T")
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
+
+    T = TypeVar("T", bound=DataclassInstance)
+else:
+    T = TypeVar("T")
 
 
 async def cached_character_list(
