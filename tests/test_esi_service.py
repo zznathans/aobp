@@ -81,39 +81,63 @@ async def test_get_market_prices_parses_entries() -> None:
 
 
 @respx.mock
-async def test_get_location_name_uses_station_endpoint_for_npc_stations() -> None:
+async def test_get_location_details_uses_station_endpoint_for_npc_stations() -> None:
     settings = Settings()
     respx.get(f"{settings.esi_base_url}/universe/stations/60003760").mock(
-        return_value=Response(200, json={"name": "Jita IV - Moon 4"})
+        return_value=Response(200, json={"name": "Jita IV - Moon 4", "system_id": 30000142})
     )
 
-    name = await esi.get_location_name(settings, "token", 60003760)
+    details = await esi.get_location_details(settings, "token", 60003760)
 
-    assert name == "Jita IV - Moon 4"
+    assert details == esi.LocationDetails(name="Jita IV - Moon 4", system_id=30000142)
 
 
 @respx.mock
-async def test_get_location_name_uses_structure_endpoint_for_player_structures() -> None:
+async def test_get_location_details_uses_structure_endpoint_for_player_structures() -> None:
     settings = Settings()
     respx.get(f"{settings.esi_base_url}/universe/structures/1000000000123").mock(
-        return_value=Response(200, json={"name": "My Citadel"})
+        return_value=Response(200, json={"name": "My Citadel", "system_id": 30000142})
     )
 
-    name = await esi.get_location_name(settings, "token", 1000000000123)
+    details = await esi.get_location_details(settings, "token", 1000000000123)
 
-    assert name == "My Citadel"
+    assert details == esi.LocationDetails(name="My Citadel", system_id=30000142)
 
 
 @respx.mock
-async def test_get_location_name_returns_none_on_forbidden() -> None:
+async def test_get_location_details_returns_empty_on_forbidden() -> None:
     settings = Settings()
     respx.get(f"{settings.esi_base_url}/universe/structures/1000000000123").mock(
         return_value=Response(403, json={"error": "no access"})
     )
 
-    name = await esi.get_location_name(settings, "token", 1000000000123)
+    details = await esi.get_location_details(settings, "token", 1000000000123)
 
-    assert name is None
+    assert details == esi.LocationDetails(name=None, system_id=None)
+
+
+@respx.mock
+async def test_get_system_security_status_returns_value() -> None:
+    settings = Settings()
+    respx.get(f"{settings.esi_base_url}/universe/systems/30000142").mock(
+        return_value=Response(200, json={"security_status": 0.9459991455078125})
+    )
+
+    status = await esi.get_system_security_status(settings, 30000142)
+
+    assert status == 0.9459991455078125
+
+
+@respx.mock
+async def test_get_system_security_status_returns_none_on_error() -> None:
+    settings = Settings()
+    respx.get(f"{settings.esi_base_url}/universe/systems/30000142").mock(
+        return_value=Response(500, json={"error": "boom"})
+    )
+
+    status = await esi.get_system_security_status(settings, 30000142)
+
+    assert status is None
 
 
 @respx.mock
@@ -128,14 +152,14 @@ async def test_get_market_prices_records_request_duration() -> None:
 
 
 @respx.mock
-async def test_get_location_name_records_error_on_forbidden() -> None:
+async def test_get_location_details_records_error_on_forbidden() -> None:
     settings = Settings()
     respx.get(f"{settings.esi_base_url}/universe/structures/1000000000123").mock(
         return_value=Response(403, json={"error": "no access"})
     )
     errors_before = esi.ESI_REQUEST_ERRORS.labels(endpoint="universe/structures")._value.get()
 
-    await esi.get_location_name(settings, "token", 1000000000123)
+    await esi.get_location_details(settings, "token", 1000000000123)
 
     assert (
         esi.ESI_REQUEST_ERRORS.labels(endpoint="universe/structures")._value.get()

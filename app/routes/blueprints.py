@@ -14,8 +14,9 @@ from app.db.mongo import get_database
 from app.db.redis import get_redis
 from app.deps import get_current_character
 from app.models.character import CharacterDocument
-from app.services import character_data, esi, locations, sde
-from app.web import gauge_cell_html, icon_url, render_page
+from app.services import character_data, locations, sde
+from app.services.locations import resolve_container_chain as _resolve_container_chain
+from app.web import gauge_cell_html, icon_url, location_label_html, location_label_text, render_page
 
 router = APIRouter(prefix="/blueprints", tags=["blueprints"])
 
@@ -76,22 +77,6 @@ _DETAIL_STYLE = """
 
 def _material_quantity_per_run(base_quantity: int, material_efficiency: int) -> int:
     return max(1, math.ceil(base_quantity * (1 - material_efficiency / 100)))
-
-
-def _resolve_container_chain(location_id: int, assets_by_item_id: dict[int, esi.AssetEntry]) -> int:
-    """A blueprint/asset location_id can be another item's item_id if it's sitting inside
-    a container (which can itself be inside another container). Walk that chain using the
-    already-fetched asset list until reaching a real station/structure id, so we never try
-    to resolve a container's item_id as if it were a station or structure."""
-    current = location_id
-    visited: set[int] = set()
-    while current in assets_by_item_id and current not in visited:
-        visited.add(current)
-        asset = assets_by_item_id[current]
-        if asset.location_type != "item":
-            return asset.location_id
-        current = asset.location_id
-    return current
 
 
 def _readiness_percentages(
@@ -248,7 +233,7 @@ async def list_blueprints(
     resolved_location_by_item_id = {
         bp.item_id: _resolve_container_chain(bp.location_id, assets_by_item_id) for bp in blueprints
     }
-    location_names = await locations.resolve_location_names(
+    location_info = await locations.resolve_location_info(
         db, redis, settings, character.access_token, set(resolved_location_by_item_id.values())
     )
 
@@ -282,8 +267,8 @@ async def list_blueprints(
         te_gauge = gauge_cell_html(100.0 * bp.time_efficiency / 20, f"{bp.time_efficiency}/20")
 
         resolved_location_id = resolved_location_by_item_id[bp.item_id]
-        location_label = escape(
-            location_names.get(resolved_location_id) or f"Location {resolved_location_id}"
+        location_label = location_label_html(
+            resolved_location_id, location_info.get(resolved_location_id)
         )
 
         item_href = escape(f"/blueprints/{bp.item_id}")
@@ -318,7 +303,7 @@ async def list_blueprints(
 
     location_options = sorted(
         {
-            (loc_id, location_names.get(loc_id) or f"Location {loc_id}")
+            (loc_id, location_label_text(loc_id, location_info.get(loc_id)))
             for loc_id in resolved_location_by_item_id.values()
         },
         key=lambda option: option[1].lower(),
@@ -387,10 +372,12 @@ async def blueprint_detail(
 
     is_copy = blueprint.quantity == -2 or blueprint.runs != -1
     resolved_location_id = _resolve_container_chain(blueprint.location_id, assets_by_item_id)
-    location_names = await locations.resolve_location_names(
+    location_info = await locations.resolve_location_info(
         db, redis, settings, character.access_token, {resolved_location_id}
     )
-    location_label = location_names.get(resolved_location_id) or f"Location {resolved_location_id}"
+    location_label = location_label_html(
+        resolved_location_id, location_info.get(resolved_location_id)
+    )
 
     sde_blueprints = await sde.blueprint_docs(db, redis, settings, {blueprint.type_id})
     sde_blueprint = sde_blueprints.get(blueprint.type_id)
@@ -407,7 +394,7 @@ async def blueprint_detail(
           <div class="meta">ME {blueprint.material_efficiency} / TE {blueprint.time_efficiency}
             &middot; {"Copy" if is_copy else "Original"}
             {f"({blueprint.runs} runs)" if is_copy else ""}</div>
-          <div class="meta">{escape(location_label)}</div>
+          <div class="meta">{location_label}</div>
         </div>
       </div>
     """

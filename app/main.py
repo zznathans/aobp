@@ -12,7 +12,7 @@ from app.core.config import get_settings
 from app.db.mongo import create_mongo_client
 from app.db.redis import create_redis_client
 from app.migrations.runner import run_migrations
-from app.routes import auth, blueprints, health, jobs, market_prices
+from app.routes import assets, auth, blueprints, health, jobs, market_prices
 from app.services.db_gauges import refresh_db_gauges_periodically
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -86,6 +86,7 @@ if _settings.metrics_enabled:
 
 app.include_router(health.router)
 app.include_router(auth.router)
+app.include_router(assets.router)
 app.include_router(blueprints.router)
 app.include_router(jobs.router)
 app.include_router(market_prices.router)

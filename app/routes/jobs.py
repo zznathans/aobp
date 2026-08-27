@@ -11,7 +11,7 @@ from app.db.redis import get_redis
 from app.deps import get_current_character
 from app.models.character import CharacterDocument
 from app.services import character_data, industry, locations, sde
-from app.web import gauge_cell_html, icon_url, render_page
+from app.web import gauge_cell_html, icon_url, location_label_html, render_page
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -48,14 +48,14 @@ async def job_detail(
     if job.product_type_id is not None:
         type_ids.add(job.product_type_id)
     type_docs = await sde.type_docs(db, redis, settings, type_ids)
-    location_names = await locations.resolve_location_names(
+    location_info = await locations.resolve_location_info(
         db, redis, settings, character.access_token, {job.facility_id}
     )
 
     blueprint_name = escape(
         str(type_docs.get(job.blueprint_type_id, {}).get("name", f"Type {job.blueprint_type_id}"))
     )
-    location_label = escape(location_names.get(job.facility_id) or f"Location {job.facility_id}")
+    location_label = location_label_html(job.facility_id, location_info.get(job.facility_id))
     activity_name = escape(
         industry.ACTIVITY_NAMES.get(job.activity_id, f"Activity {job.activity_id}")
     )
