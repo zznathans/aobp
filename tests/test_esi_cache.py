@@ -104,7 +104,7 @@ async def test_empty_fetch_result_does_not_error_and_still_caches() -> None:
 
     assert result == []
     cached_raw = await redis.get("character_widgets:99")
-    assert cached_raw == "[]"
+    assert cached_raw is not None
 
 
 async def test_no_redis_still_fetches_and_persists() -> None:

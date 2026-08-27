@@ -14,9 +14,8 @@ def _mongo_db() -> object:
 
 
 def _asset_response_route(settings: Settings) -> respx.Route:
-    return respx.get(
-        f"{settings.esi_base_url}/characters/{CHARACTER_ID}/assets", params={"page": 1}
-    ).mock(
+    url = f"{settings.esi_base_url}/characters/{CHARACTER_ID}/assets"
+    return respx.get(url, params={"page": 1}).mock(
         return_value=Response(
             200,
             headers={"X-Pages": "1"},
@@ -42,9 +41,7 @@ async def test_get_character_assets_persists_to_mongo() -> None:
     redis = FakeRedis()
     _asset_response_route(settings)
 
-    assets = await character_data.get_character_assets(
-        db, redis, settings, "token", CHARACTER_ID
-    )
+    assets = await character_data.get_character_assets(db, redis, settings, "token", CHARACTER_ID)
 
     assert len(assets) == 1
     assert assets[0].type_id == 34
