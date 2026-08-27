@@ -24,19 +24,26 @@ from app.web import (
 router = APIRouter()
 
 _LOGIN_STYLE = """
-  body { display: flex; align-items: center; justify-content: center; }
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+  .login-wrap {
+    flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem 1.5rem;
+  }
   .card {
     background: #1a1d24;
     border: 1px solid #2a2e37;
     border-radius: 12px;
     padding: 2rem 2.5rem;
-    width: 20rem;
-    text-align: center;
+    width: 26rem;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-    margin: auto;
   }
-  h1 { font-size: 1.25rem; margin: 0 0 1.5rem; font-weight: 600; }
-  .btn { width: 100%; }
+  h1 { font-size: 1.25rem; margin: 0 0 0.75rem; font-weight: 600; text-align: center; }
+  .tagline { color: #9aa4b2; font-size: 0.9rem; line-height: 1.5; margin: 0 0 1.25rem; }
+  .feature-list {
+    color: #9aa4b2; font-size: 0.85rem; line-height: 1.6;
+    margin: 0 0 1.5rem; padding-left: 1.1rem;
+  }
+  .feature-list li { margin-bottom: 0.35rem; }
+  .card .btn { width: 100%; }
 """
 
 _DASHBOARD_STYLE = """
@@ -74,11 +81,25 @@ _DASHBOARD_STYLE = """
 
 def _render_login() -> str:
     body = """
-      <div class="card">
-        <h1>eve-build</h1>
-        <form method="get" action="/auth/login">
-          <button class="btn btn-primary" type="submit">Log in with EVE Online</button>
-        </form>
+      <div class="login-wrap">
+        <div class="card">
+          <h1>eve-build</h1>
+          <p class="tagline">
+            Imports your EVE Online characters' blueprints, assets, and industry jobs, so you
+            can see what's buildable, what it's worth, and what's in production.
+          </p>
+          <ul class="feature-list">
+            <li>Blueprint material/time efficiency and buildable-run counts, on-site and
+              across all assets</li>
+            <li>Assets by category - minerals, ore, PI materials, datacores, decryptors -
+              with volume and ISK value</li>
+            <li>Live market pricing</li>
+            <li>Industry job status and progress</li>
+          </ul>
+          <form method="get" action="/auth/login">
+            <button class="btn btn-primary" type="submit">Log in with EVE Online</button>
+          </form>
+        </div>
       </div>
     """
     return render_page("eve-build", body, _LOGIN_STYLE)
