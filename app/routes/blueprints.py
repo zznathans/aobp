@@ -14,9 +14,16 @@ from app.db.mongo import get_database
 from app.db.redis import get_redis
 from app.deps import get_current_character
 from app.models.character import CharacterDocument
-from app.services import character_data, locations, sde
+from app.services import character_data, locations, market_prices, sde
 from app.services.locations import resolve_container_chain as _resolve_container_chain
-from app.web import gauge_cell_html, icon_url, location_label_html, location_label_text, render_page
+from app.web import (
+    format_isk,
+    gauge_cell_html,
+    icon_url,
+    location_label_html,
+    location_label_text,
+    render_page,
+)
 
 router = APIRouter(prefix="/blueprints", tags=["blueprints"])
 
@@ -62,7 +69,7 @@ _DETAIL_STYLE = """
   .header .name { font-size: 1.3rem; font-weight: 600; }
   .header .meta { color: #9aa4b2; font-size: 0.85rem; margin-top: 0.25rem; }
   .summary {
-    display: flex; gap: 1.5rem; margin-bottom: 1.5rem;
+    display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; margin-bottom: 1.5rem;
     background: #1a1d24; border: 1px solid #2a2e37; border-radius: 10px; padding: 1rem;
   }
   .summary .figure { font-size: 1.4rem; font-weight: 700; }
@@ -388,6 +395,64 @@ async def blueprint_detail(
     blueprint_name = escape(str(blueprint_type_name or f"Type {blueprint.type_id}"))
     blueprint_icon_url = escape(icon_url(blueprint.type_id, is_copy))
 
+    if sde_blueprint is None:
+        header = f"""
+          <div class="header">
+            <img class="icon" src="{blueprint_icon_url}" alt="{blueprint_name}"
+              onerror="this.style.visibility='hidden'">
+            <div>
+              <div class="name">{blueprint_name}</div>
+              <div class="meta">ME {blueprint.material_efficiency} / TE {blueprint.time_efficiency}
+                &middot; {"Copy" if is_copy else "Original"}
+                {f"({blueprint.runs} runs)" if is_copy else ""}</div>
+              <div class="meta">{location_label}</div>
+            </div>
+          </div>
+        """
+        body = f"""<div class="page">{header}
+          <p class="empty">No manufacturing data available for this blueprint.</p>
+          <a class="btn btn-secondary back" href="/blueprints">Back to blueprints</a>
+        </div>"""
+        return HTMLResponse(
+            render_page(f"{blueprint_name} - eve-build", body, _DETAIL_STYLE, character=character)
+        )
+
+    materials = cast(list[dict[str, int]], sde_blueprint["materials"])
+    product_type_id = cast(int | None, sde_blueprint.get("product_type_id"))
+    product_quantity = cast(int, sde_blueprint.get("product_quantity", 1))
+
+    price_type_ids = {m["type_id"] for m in materials}
+    if product_type_id is not None:
+        price_type_ids.add(product_type_id)
+    prices = await market_prices.list_market_prices(db, price_type_ids)
+    price_by_type_id: dict[int, dict[str, object]] = {cast(int, p["_id"]): p for p in prices}
+
+    cost_per_run = sum(
+        _material_quantity_per_run(m["quantity"], blueprint.material_efficiency)
+        * market_prices.unit_price(price_by_type_id.get(m["type_id"]))
+        for m in materials
+    )
+    price_figures = f"""
+      <div>
+        <div class="figure">{format_isk(cost_per_run)}</div>
+        <div class="label">Cost / run</div>
+      </div>
+    """
+    if product_type_id is not None:
+        output_per_run = product_quantity * market_prices.unit_price(
+            price_by_type_id.get(product_type_id)
+        )
+        price_figures += f"""
+          <div>
+            <div class="figure">{format_isk(output_per_run)}</div>
+            <div class="label">Output / run</div>
+          </div>
+          <div>
+            <div class="figure">{format_isk(output_per_run - cost_per_run)}</div>
+            <div class="label">Profit / run</div>
+          </div>
+        """
+
     header = f"""
       <div class="header">
         <img class="icon" src="{blueprint_icon_url}" alt="{blueprint_name}"
@@ -402,15 +467,6 @@ async def blueprint_detail(
       </div>
     """
 
-    if sde_blueprint is None:
-        body = f"""<div class="page">{header}
-          <p class="empty">No manufacturing data available for this blueprint.</p>
-          <a class="btn btn-secondary back" href="/blueprints">Back to blueprints</a>
-        </div>"""
-        return HTMLResponse(
-            render_page(f"{blueprint_name} - eve-build", body, _DETAIL_STYLE, character=character)
-        )
-
     on_site_totals: dict[int, int] = {}
     global_totals: dict[int, int] = {}
     for asset in assets:
@@ -418,7 +474,6 @@ async def blueprint_detail(
         if asset.location_id == blueprint.location_id:
             on_site_totals[asset.type_id] = on_site_totals.get(asset.type_id, 0) + asset.quantity
 
-    materials = cast(list[dict[str, int]], sde_blueprint["materials"])
     material_type_ids = {m["type_id"] for m in materials}
     material_docs = await sde.type_docs(db, redis, settings, material_type_ids)
 
@@ -465,6 +520,7 @@ async def blueprint_detail(
           <div class="figure">{int(global_buildable)}</div>
           <div class="label">Buildable (all assets)</div>
         </div>
+        {price_figures}
       </div>
       <table>
         <thead>

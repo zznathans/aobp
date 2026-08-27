@@ -8,6 +8,7 @@ def _job(start: datetime, end: datetime) -> IndustryJobEntry:
     return IndustryJobEntry(
         job_id=1,
         activity_id=1,
+        blueprint_id=100,
         blueprint_type_id=588,
         product_type_id=587,
         facility_id=60003760,

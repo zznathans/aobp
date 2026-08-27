@@ -64,6 +64,7 @@ class AssetEntry:
 class IndustryJobEntry:
     job_id: int
     activity_id: int
+    blueprint_id: int
     blueprint_type_id: int
     product_type_id: int | None
     facility_id: int
@@ -167,6 +168,7 @@ async def get_character_industry_jobs(
         IndustryJobEntry(
             job_id=entry["job_id"],
             activity_id=entry["activity_id"],
+            blueprint_id=entry["blueprint_id"],
             blueprint_type_id=entry["blueprint_type_id"],
             product_type_id=entry.get("product_type_id"),
             facility_id=entry["facility_id"],
