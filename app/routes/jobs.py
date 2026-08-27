@@ -10,7 +10,7 @@ from app.db.mongo import get_database
 from app.db.redis import get_redis
 from app.deps import get_current_character
 from app.models.character import CharacterDocument
-from app.services import esi, industry, locations, sde
+from app.services import character_data, industry, locations, sde
 from app.web import gauge_cell_html, icon_url, render_page
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -37,8 +37,8 @@ async def job_detail(
     redis: Redis | None = Depends(get_redis),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
-    jobs = await esi.get_character_industry_jobs(
-        settings, character.access_token, character.character_id
+    jobs = await character_data.get_character_industry_jobs(
+        db, redis, settings, character.access_token, character.character_id
     )
     job = next((j for j in jobs if j.job_id == job_id), None)
     if job is None:

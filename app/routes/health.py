@@ -11,7 +11,7 @@ from app.db.mongo import get_database
 from app.db.redis import get_redis
 from app.deps import get_current_character_optional
 from app.models.character import CharacterDocument
-from app.services import esi, industry, locations, sde
+from app.services import character_data, esi, industry, locations, sde
 from app.web import gauge_cell_html, humanize_relative_time, icon_url, render_page
 
 router = APIRouter()
@@ -164,14 +164,14 @@ async def read_root(
     if character is None:
         return HTMLResponse(_render_login())
 
-    blueprints = await esi.get_character_blueprints(
-        settings, character.access_token, character.character_id
+    blueprints = await character_data.get_character_blueprints(
+        db, redis, settings, character.access_token, character.character_id
     )
-    assets = await esi.get_character_assets(
-        settings, character.access_token, character.character_id
+    assets = await character_data.get_character_assets(
+        db, redis, settings, character.access_token, character.character_id
     )
-    jobs = await esi.get_character_industry_jobs(
-        settings, character.access_token, character.character_id
+    jobs = await character_data.get_character_industry_jobs(
+        db, redis, settings, character.access_token, character.character_id
     )
     active_jobs = [job for job in jobs if job.status == "active"]
     blueprint_type_docs = await sde.type_docs(
