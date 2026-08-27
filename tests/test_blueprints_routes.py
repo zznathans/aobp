@@ -395,6 +395,38 @@ async def test_blueprint_detail_computes_buildable_counts(
 
 
 @respx.mock
+async def test_blueprint_detail_shows_price_info_per_run(
+    client: TestClient,
+    test_settings: Settings,
+    mongo_db: AsyncMongoMockClient,
+    rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+) -> None:
+    _log_in(client, test_settings, rsa_key_pair)
+    await _seed_sde(mongo_db)
+    _mock_blueprints(test_settings)
+    _mock_assets(test_settings, on_site=6, elsewhere=20)
+    _mock_station_name(test_settings)
+    await mongo_db.market_prices.insert_many(
+        [
+            {"_id": TRITANIUM_TYPE_ID, "adjusted_price": 5.0, "average_price": 5.0},
+            {"_id": 587, "adjusted_price": 100.0, "average_price": 100.0},
+        ]
+    )
+
+    response = client.get(f"/blueprints/{BLUEPRINT_ITEM_ID}")
+
+    assert response.status_code == 200
+    # 0 ME needs 10 Tritanium/run * 5 ISK = 50 ISK cost; product (type 587) is worth
+    # 1 * 100 ISK = 100 ISK; profit is the 50 ISK difference. These render as figure/label
+    # pairs in the summary box, not as one inline string.
+    assert "Cost / run" in response.text
+    assert "Output / run" in response.text
+    assert "Profit / run" in response.text
+    assert '<div class="figure">50 ISK</div>' in response.text
+    assert '<div class="figure">100 ISK</div>' in response.text
+
+
+@respx.mock
 async def test_blueprint_detail_retries_location_after_failed_lookup(
     client: TestClient,
     test_settings: Settings,

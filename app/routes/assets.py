@@ -221,7 +221,8 @@ def _category_rows(
           <tr>
             <td>
               <a class="asset-item" href="{item_href}">
-                <img class="icon" src="{icon}" alt="{name}">
+                <img class="icon" src="{icon}" alt="{name}"
+                  onerror="this.style.visibility='hidden'">
                 <span class="name">{name}</span>
               </a>
             </td>
@@ -400,7 +401,8 @@ async def item_detail(
     icon = escape(item_icon_url(type_id))
     header = f"""
       <div class="header">
-        <img class="icon" src="{icon}" alt="{name}">
+        <img class="icon" src="{icon}" alt="{name}"
+          onerror="this.style.visibility='hidden'">
         <div>
           <div class="name">{name}</div>
           <div class="meta">{format_number(unit_volume)} m3 / unit</div>
@@ -533,7 +535,8 @@ async def location_detail(
                   <tr>
                     <td>
                       <a class="asset-item" href="{item_href}">
-                        <img class="icon" src="{icon}" alt="{name}">
+                        <img class="icon" src="{icon}" alt="{name}"
+                          onerror="this.style.visibility='hidden'">
                         <span class="name">{name}</span>
                       </a>
                     </td>

@@ -77,6 +77,8 @@ async def test_job_detail_shows_blueprint_location_and_product(
     assert "Rifter" in response.text
     assert ">3<" in response.text
     assert "mini-gauge" in response.text
+    assert 'href="/blueprints/100"' in response.text
+    assert "View blueprint" in response.text
 
 
 @respx.mock

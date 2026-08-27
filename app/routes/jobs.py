@@ -25,7 +25,7 @@ _DETAIL_STYLE = """
   .facts dl { margin: 0; display: grid; grid-template-columns: 10rem 1fr; row-gap: 0.75rem; }
   .facts dt { color: #9aa4b2; font-size: 0.8rem; }
   .facts dd { margin: 0; }
-  .back { display: inline-block; margin-top: 1.5rem; }
+  .actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
 """
 
 
@@ -70,9 +70,11 @@ async def job_detail(
         )
         product_row = f"<dt>Product</dt><dd>{product_name}</dd>"
 
+    job_icon_url = escape(icon_url(job.blueprint_type_id))
     header = f"""
       <div class="header">
-        <img class="icon" src="{escape(icon_url(job.blueprint_type_id))}" alt="{blueprint_name}">
+        <img class="icon" src="{job_icon_url}" alt="{blueprint_name}"
+          onerror="this.style.visibility='hidden'">
         <div>
           <div class="name">{blueprint_name}</div>
           <div class="meta">{activity_name} &middot; {status_label}</div>
@@ -91,7 +93,12 @@ async def job_detail(
           {product_row}
         </dl>
       </div>
-      <a class="btn btn-secondary back" href="/">Back to dashboard</a>
+      <div class="actions">
+        <a class="btn btn-secondary" href="{escape(f"/blueprints/{job.blueprint_id}")}">
+          View blueprint
+        </a>
+        <a class="btn btn-secondary" href="/">Back to dashboard</a>
+      </div>
     </div>"""
     return HTMLResponse(
         render_page(f"{blueprint_name} - eve-build", body, _DETAIL_STYLE, character=character)

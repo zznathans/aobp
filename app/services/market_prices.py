@@ -1,5 +1,6 @@
 import asyncio
 from datetime import UTC, datetime
+from typing import cast
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -41,3 +42,7 @@ async def list_market_prices(
 
 async def get_market_price(db: AsyncIOMotorDatabase, type_id: int) -> dict[str, object] | None:
     return await db.market_prices.find_one({"_id": type_id})
+
+
+def unit_price(price_doc: dict[str, object] | None) -> float:
+    return float(cast(float | int | None, (price_doc or {}).get("average_price")) or 0.0)
