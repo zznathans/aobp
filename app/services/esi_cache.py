@@ -30,7 +30,13 @@ async def cached_character_list(
     cache_key = f"{cache_key_prefix}:{character_id}"
     cached = await cache.get_many_cached(redis, [cache_key])
     if cache_key in cached:
-        return [entry_type(**entry) for entry in cached[cache_key]]
+        try:
+            return [entry_type(**entry) for entry in cached[cache_key]]
+        except TypeError:
+            # Cached entries were serialized before entry_type gained/dropped a field -
+            # fall through to a fresh fetch (which overwrites the stale cache below)
+            # instead of crashing the request on a schema mismatch.
+            pass
 
     entries = await fetch()
     entry_dicts = [asdict(entry) for entry in entries]
