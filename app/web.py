@@ -163,7 +163,7 @@ def security_status_html(security_status: float) -> str:
 
 
 def location_label_html(location_id: int, info: LocationInfo | None) -> str:
-    label = escape(info.name) if info and info.name else f"Location {location_id}"
+    label = escape(info.name) if info and info.name else escape(f"Location {location_id}")
     if info is None or info.security_status is None:
         return label
     return f"{label} ({security_status_html(info.security_status)})"
