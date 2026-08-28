@@ -35,6 +35,13 @@ _TABLE_FIXTURES: dict[str, list[dict[str, object]]] = {
     "industryActivityProducts": [
         {"typeID": 588, "activityID": 1, "productTypeID": 587, "quantity": 1}
     ],
+    "planetSchematics": [
+        {"schematicID": 65, "schematicName": "Superconductors", "cycleTime": 3600}
+    ],
+    "planetSchematicsTypeMap": [
+        {"schematicID": 65, "typeID": 34, "quantity": 40, "isInput": 1},
+        {"schematicID": 65, "typeID": 587, "quantity": 5, "isInput": 0},
+    ],
 }
 
 
@@ -93,15 +100,27 @@ async def test_run_migrations_populates_raw_and_lookup_collections(tmp_path: Pat
         "0001_import_raw_sde_tables:industryActivity",
         "0001_import_raw_sde_tables:industryActivityMaterials",
         "0001_import_raw_sde_tables:industryActivityProducts",
+        "0001_import_raw_sde_tables:planetSchematics",
+        "0001_import_raw_sde_tables:planetSchematicsTypeMap",
         "0002_build_sde_lookup_collections",
         "0003_add_volume_to_sde_types",
         "0004_add_category_id_to_sde_types",
         "0005_import_sde_categories",
+        "0006_build_sde_planet_schematics",
     }
 
     assert await db["invTypes"].count_documents({}) == 3
     assert await db["sde_types"].count_documents({}) == 3
     assert await db["sde_blueprints"].count_documents({}) == 1
+
+    superconductors = await db["sde_planet_schematics"].find_one({"_id": 65})
+    assert superconductors == {
+        "_id": 65,
+        "name": "Superconductors",
+        "cycle_time_seconds": 3600,
+        "output": {"type_id": 587, "quantity": 5},
+        "inputs": [{"type_id": 34, "quantity": 40}],
+    }
 
     rifter_blueprint = await db["sde_blueprints"].find_one({"_id": 588})
     assert rifter_blueprint == {
@@ -137,7 +156,7 @@ async def test_run_migrations_is_idempotent(tmp_path: Path) -> None:
     await run_migrations(db, settings)
     await run_migrations(db, settings)
 
-    assert await db["_migrations"].count_documents({}) == 9
+    assert await db["_migrations"].count_documents({}) == 12
     assert await db["sde_blueprints"].count_documents({}) == 1
 
 
@@ -165,6 +184,8 @@ async def test_failed_migration_is_not_recorded_and_retries(
         "0001_import_raw_sde_tables:industryActivity",
         "0001_import_raw_sde_tables:industryActivityMaterials",
         "0001_import_raw_sde_tables:industryActivityProducts",
+        "0001_import_raw_sde_tables:planetSchematics",
+        "0001_import_raw_sde_tables:planetSchematicsTypeMap",
     }
 
     monkeypatch.undo()
@@ -216,9 +237,12 @@ async def test_import_raw_sde_tables_resumes_after_partial_failure(
         "0001_import_raw_sde_tables:industryActivity",
         "0001_import_raw_sde_tables:industryActivityMaterials",
         "0001_import_raw_sde_tables:industryActivityProducts",
+        "0001_import_raw_sde_tables:planetSchematics",
+        "0001_import_raw_sde_tables:planetSchematicsTypeMap",
         "0002_build_sde_lookup_collections",
         "0003_add_volume_to_sde_types",
         "0004_add_category_id_to_sde_types",
         "0005_import_sde_categories",
+        "0006_build_sde_planet_schematics",
     }
     assert await db["invTypes"].count_documents({}) == 3

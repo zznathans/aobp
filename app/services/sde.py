@@ -61,3 +61,7 @@ async def category_docs(
     category_ids: set[int],
 ) -> dict[int, dict[str, object]]:
     return await cached_docs_by_id(db.sde_categories, redis, settings, "sde_category", category_ids)
+
+
+async def list_all_planet_schematics(db: AsyncIOMotorDatabase) -> list[dict[str, object]]:
+    return await db.sde_planet_schematics.find({}).to_list(None)
