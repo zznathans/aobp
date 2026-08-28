@@ -1,9 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-    paths-ignore: ["charts/**", "**.md"]
   pull_request:
     paths-ignore: ["charts/**", "**.md"]
 
