@@ -28,6 +28,7 @@ _LIST_STYLE = """
   }
   .pi-filters label { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; }
   .pi-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .pi-table-narrow { width: auto; min-width: 22rem; }
   .pi-table th, .pi-table td {
     padding: 0.5rem 0.75rem; border-bottom: 1px solid #2a2e37; text-align: left;
     vertical-align: middle;
@@ -242,7 +243,7 @@ async def list_planet_schematics(
         p0_html = f"""
           <div id="tier-p0">
             <h2>{escape(_P0_LABEL)}</h2>
-            <table class="pi-table">
+            <table class="pi-table pi-table-narrow">
               <thead><tr><th>Material</th><th>Price</th></tr></thead>
               <tbody>{raw_rows_html}</tbody>
             </table>
