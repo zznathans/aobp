@@ -105,4 +105,3 @@ pyproject.toml  project metadata, deps, tool config (ruff/black/mypy/pytest)
 Makefile        common dev commands
 .github/        CI, Docker build check + publish, Helm lint/test + publish, PR labeler, dependabot
 ```
-
