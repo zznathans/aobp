@@ -100,6 +100,11 @@ async def test_planetary_list_groups_by_tier_and_shows_profit(
     # Schematic rows link through to their detail page.
     assert f'href="/planetary/{COOLANT_SCHEMATIC_ID}"' in response.text
 
+    # Profit / day: Coolant profit/cycle = 500 - 10 = 490 ISK, cycle = 1800s (48 cycles/day)
+    # -> 23520 ISK/day.
+    assert "Profit / day" in response.text
+    assert "23.5K ISK" in response.text
+
 
 @respx.mock
 async def test_planetary_list_empty(
@@ -134,6 +139,16 @@ async def test_planetary_detail_tier1_has_single_from_p0_row(
     # format_isk rounds sub-1000 values to whole ISK.
     assert "50 ISK" in response.text
 
+    # Materials breakdown table for the "From P0" section shows the actual line item.
+    assert "Quantity" in response.text
+    assert "Unit price" in response.text
+    assert "Tritanium" in response.text
+    assert "10.00" in response.text  # quantity
+
+    # Profit / day: output value 40 - cost 50 = -10 ISK/cycle, cycle = 1800s -> -480 ISK/day.
+    assert "Profit / day" in response.text
+    assert "-480 ISK" in response.text
+
 
 @respx.mock
 async def test_planetary_detail_tier2_breaks_down_from_p0_and_p1(
@@ -157,6 +172,17 @@ async def test_planetary_detail_tier2_breaks_down_from_p0_and_p1(
     assert "12 ISK" in response.text
     # Output value is constant across rows: 10 Coolant * 50.0 ISK = 500 ISK.
     assert response.text.count("500 ISK") == 2
+
+    # Materials breakdown: "From P1" buys 5 Water directly; "From P0" buys 2.5 Tritanium
+    # (5 Water needs 5/20 = 0.25 Water-runs, each needing 10 Tritanium).
+    assert "5.00" in response.text  # Water quantity, From P1 section
+    assert "2.50" in response.text  # Tritanium quantity, From P0 section
+
+    # Profit / day (cycle = 1800s, 48 cycles/day): From P1 = 490*48 = 23520 -> 23.5K ISK;
+    # From P0 = 487.5*48 = 23400 -> 23.4K ISK (distinct from the From-P1 figure).
+    assert "Profit / day" in response.text
+    assert "23.5K ISK" in response.text
+    assert "23.4K ISK" in response.text
 
 
 @respx.mock

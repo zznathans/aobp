@@ -55,6 +55,8 @@ _DETAIL_STYLE = """
   .header .icon { width: 64px; height: 64px; border-radius: 8px; }
   .header .name { font-size: 1.3rem; font-weight: 600; }
   .header .meta { color: #9aa4b2; font-size: 0.85rem; margin-top: 0.25rem; }
+  h2 { font-size: 1rem; margin: 2rem 0 0.75rem; }
+  h2:first-of-type { margin-top: 1.5rem; }
   table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
   th, td { text-align: right; padding: 0.5rem; border-bottom: 1px solid #2a2e37; }
   th:first-child, td:first-child { text-align: left; }
@@ -79,6 +81,10 @@ class _Row:
     tier_group_id: int | None
     name: str
     html: str
+
+
+def _profit_per_day(profit: float, cycle_time_seconds: int) -> float:
+    return profit * 86400 / cycle_time_seconds
 
 
 def _collect_price_type_ids(schematics: list[dict[str, object]]) -> set[int]:
@@ -172,6 +178,8 @@ async def list_planet_schematics(
             for material in inputs
         )
         profit = output_value - input_cost
+        cycle_time_seconds = cast(int, schematic["cycle_time_seconds"])
+        profit_per_day = _profit_per_day(profit, cycle_time_seconds)
 
         inputs_text = ", ".join(
             f"{_type_name(material['type_id'])} &times;{material['quantity']}"
@@ -181,7 +189,7 @@ async def list_planet_schematics(
         icon = escape(item_icon_url(output_type_id))
         output_name = escape(_type_name(output_type_id))
         schematic_name = escape(name)
-        cycle_minutes = cast(int, schematic["cycle_time_seconds"]) // 60
+        cycle_minutes = cycle_time_seconds // 60
         detail_href = escape(f"/planetary/{schematic_id}")
 
         row_html = f"""
@@ -199,6 +207,7 @@ async def list_planet_schematics(
             <td class="num">{format_isk(input_cost)}</td>
             <td class="num">{format_isk(output_value)}</td>
             <td class="num">{format_isk(profit)}</td>
+            <td class="num">{format_isk(profit_per_day)}</td>
           </tr>
         """
         tier_group_id = cast(dict[str, object] | None, type_docs.get(output_type_id))
@@ -220,7 +229,7 @@ async def list_planet_schematics(
     headers = """
       <tr>
         <th>Schematic</th><th>Output</th><th>Inputs</th><th>Cycle</th>
-        <th>Input cost</th><th>Output value</th><th>Profit / cycle</th>
+        <th>Input cost</th><th>Output value</th><th>Profit / cycle</th><th>Profit / day</th>
       </tr>
     """
 
@@ -324,7 +333,8 @@ async def planet_schematic_detail(
     schematic_name = escape(str(schematic["name"]))
     output_name = escape(_type_name(output_type_id))
     icon = escape(item_icon_url(output_type_id))
-    cycle_minutes = cast(int, schematic["cycle_time_seconds"]) // 60
+    cycle_time_seconds = cast(int, schematic["cycle_time_seconds"])
+    cycle_minutes = cycle_time_seconds // 60
 
     header = f"""
       <div class="header">
@@ -345,7 +355,8 @@ async def planet_schematic_detail(
         </div>"""
         return HTMLResponse(render_page(page_title, body, _DETAIL_STYLE, character=character))
 
-    rows_html = []
+    summary_rows_html = []
+    detail_sections_html = []
     for floor in range(own_tier):
         expanded: dict[int, float] = {}
         for material in inputs:
@@ -364,24 +375,55 @@ async def planet_schematic_detail(
             for type_id, quantity in expanded.items()
         )
         profit = output_value - cost
+        profit_per_day = _profit_per_day(profit, cycle_time_seconds)
         tier_label = f"From P{floor}"
 
-        rows_html.append(f"""
+        summary_rows_html.append(f"""
           <tr>
             <td>{escape(tier_label)}</td>
             <td>{format_isk(cost)}</td>
             <td>{format_isk(output_value)}</td>
             <td>{format_isk(profit)}</td>
+            <td>{format_isk(profit_per_day)}</td>
           </tr>
+        """)
+
+        material_lines = sorted(
+            (
+                (type_id, quantity, market_prices.unit_price(price_by_type_id.get(type_id)))
+                for type_id, quantity in expanded.items()
+            ),
+            key=lambda line: _type_name(line[0]).lower(),
+        )
+        material_rows_html = "".join(f"""
+              <tr>
+                <td>{escape(_type_name(type_id))}</td>
+                <td>{quantity:,.2f}</td>
+                <td>{format_isk(unit_price)}</td>
+                <td>{format_isk(quantity * unit_price)}</td>
+              </tr>
+            """ for type_id, quantity, unit_price in material_lines)
+        detail_sections_html.append(f"""
+          <h2>{escape(tier_label)}</h2>
+          <table>
+            <thead>
+              <tr><th>Material</th><th>Quantity</th><th>Unit price</th><th>Subtotal</th></tr>
+            </thead>
+            <tbody>{material_rows_html}</tbody>
+          </table>
         """)
 
     body = f"""<div class="page">{header}
       <table>
         <thead>
-          <tr><th>Starting tier</th><th>Material cost</th><th>Output value</th><th>Profit</th></tr>
+          <tr>
+            <th>Starting tier</th><th>Material cost</th><th>Output value</th>
+            <th>Profit</th><th>Profit / day</th>
+          </tr>
         </thead>
-        <tbody>{"".join(rows_html)}</tbody>
+        <tbody>{"".join(summary_rows_html)}</tbody>
       </table>
+      {"".join(detail_sections_html)}
       <a class="btn btn-secondary back" href="/planetary">Back to planetary industry</a>
     </div>"""
     return HTMLResponse(render_page(page_title, body, _DETAIL_STYLE, character=character))
