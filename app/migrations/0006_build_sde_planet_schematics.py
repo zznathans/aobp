@@ -1,3 +1,6 @@
+import gzip
+import json
+from pathlib import Path
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorCollection, AsyncIOMotorDatabase
@@ -20,11 +23,14 @@ async def _replace_all(
 
 
 async def apply(db: AsyncIOMotorDatabase, settings: Settings) -> None:
+    data_dir = Path(settings.sde_data_dir)
+
+    with gzip.open(data_dir / "planetSchematicsTypeMap.json.gz", "rt", encoding="utf-8") as fh:
+        type_map_rows: list[dict[str, Any]] = json.load(fh)
+
     inputs: dict[int, list[dict[str, int]]] = {}
     outputs: dict[int, dict[str, int]] = {}
-    async for row in db["planetSchematicsTypeMap"].find(
-        {}, {"schematicID": 1, "typeID": 1, "quantity": 1, "isInput": 1}
-    ):
+    for row in type_map_rows:
         schematic_id = row["schematicID"]
         entry = {"type_id": row["typeID"], "quantity": row["quantity"]}
         if row["isInput"]:
@@ -32,10 +38,11 @@ async def apply(db: AsyncIOMotorDatabase, settings: Settings) -> None:
         else:
             outputs[schematic_id] = entry
 
+    with gzip.open(data_dir / "planetSchematics.json.gz", "rt", encoding="utf-8") as fh:
+        schematic_rows: list[dict[str, Any]] = json.load(fh)
+
     schematic_docs = []
-    async for row in db["planetSchematics"].find(
-        {}, {"schematicID": 1, "schematicName": 1, "cycleTime": 1}
-    ):
+    for row in schematic_rows:
         schematic_id = row["schematicID"]
         output = outputs.get(schematic_id)
         if output is None:
