@@ -60,6 +60,8 @@ _DETAIL_STYLE = """
   table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
   th, td { text-align: right; padding: 0.5rem; border-bottom: 1px solid #2a2e37; }
   th:first-child, td:first-child { text-align: left; }
+  .material-cell { display: flex; align-items: center; gap: 0.5rem; }
+  .material-cell .icon { width: 24px; height: 24px; border-radius: 4px; flex-shrink: 0; }
   .back { display: inline-block; margin-top: 1.5rem; }
   .empty { color: #9aa4b2; }
 """
@@ -397,7 +399,13 @@ async def planet_schematic_detail(
         )
         material_rows_html = "".join(f"""
               <tr>
-                <td>{escape(_type_name(type_id))}</td>
+                <td>
+                  <div class="material-cell">
+                    <img class="icon" src="{escape(item_icon_url(type_id))}"
+                      alt="{escape(_type_name(type_id))}" onerror="this.style.visibility='hidden'">
+                    <div>{escape(_type_name(type_id))}</div>
+                  </div>
+                </td>
                 <td>{quantity:,.2f}</td>
                 <td>{format_isk(unit_price)}</td>
                 <td>{format_isk(quantity * unit_price)}</td>
