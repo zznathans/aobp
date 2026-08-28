@@ -145,6 +145,10 @@ async def test_planetary_detail_tier1_has_single_from_p0_row(
     assert "Tritanium" in response.text
     assert "10.00" in response.text  # quantity
 
+    # Each material row is prefixed with an icon of that item.
+    assert 'class="material-cell"' in response.text
+    assert f"https://images.evetech.net/types/{TRITANIUM_TYPE_ID}/icon" in response.text
+
     # Profit / day: output value 40 - cost 50 = -10 ISK/cycle, cycle = 1800s -> -480 ISK/day.
     assert "Profit / day" in response.text
     assert "-480 ISK" in response.text
