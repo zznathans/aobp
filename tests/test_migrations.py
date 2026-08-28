@@ -112,6 +112,7 @@ async def test_run_migrations_populates_raw_and_lookup_collections(tmp_path: Pat
         "0004_add_category_id_to_sde_types",
         "0005_import_sde_categories",
         "0006_build_sde_planet_schematics",
+        "0007_rebuild_sde_planet_schematics",
     }
 
     assert await db["invTypes"].count_documents({}) == 3
@@ -153,6 +154,34 @@ async def test_run_migrations_populates_raw_and_lookup_collections(tmp_path: Pat
     assert ship_category["name"] == "Ship"
 
 
+async def test_0007_backfills_schematics_when_0006_already_recorded_empty(
+    tmp_path: Path,
+) -> None:
+    # Simulates a database that already ran the original (buggy) 0006, which recorded
+    # itself as applied while leaving sde_planet_schematics empty (see 387c8eb) - the
+    # runner skips a migration outright once its top-level ID is recorded, so 0007 has to
+    # independently backfill the collection under a fresh ID.
+    _write_fixtures(tmp_path)
+    db = AsyncMongoMockClient()["test"]
+    settings = _settings(tmp_path)
+
+    await db["_migrations"].insert_one({"_id": "0006_build_sde_planet_schematics"})
+
+    await run_migrations(db, settings)
+
+    applied_ids = {doc["_id"] async for doc in db["_migrations"].find({}, {"_id": 1})}
+    assert "0007_rebuild_sde_planet_schematics" in applied_ids
+
+    superconductors = await db["sde_planet_schematics"].find_one({"_id": 65})
+    assert superconductors == {
+        "_id": 65,
+        "name": "Superconductors",
+        "cycle_time_seconds": 3600,
+        "output": {"type_id": 587, "quantity": 5},
+        "inputs": [{"type_id": 34, "quantity": 40}],
+    }
+
+
 async def test_run_migrations_is_idempotent(tmp_path: Path) -> None:
     _write_fixtures(tmp_path)
     db = AsyncMongoMockClient()["test"]
@@ -161,7 +190,7 @@ async def test_run_migrations_is_idempotent(tmp_path: Path) -> None:
     await run_migrations(db, settings)
     await run_migrations(db, settings)
 
-    assert await db["_migrations"].count_documents({}) == 10
+    assert await db["_migrations"].count_documents({}) == 11
     assert await db["sde_blueprints"].count_documents({}) == 1
 
 
@@ -245,5 +274,6 @@ async def test_import_raw_sde_tables_resumes_after_partial_failure(
         "0004_add_category_id_to_sde_types",
         "0005_import_sde_categories",
         "0006_build_sde_planet_schematics",
+        "0007_rebuild_sde_planet_schematics",
     }
     assert await db["invTypes"].count_documents({}) == 3
