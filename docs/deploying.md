@@ -6,7 +6,7 @@ for values and usage. Quick start:
 ```bash
 helm lint charts/eve-build --strict
 helm unittest charts/eve-build
-helm install eve-build oci://ghcr.io/zznathans/eve-build/charts/eve-build --version X.Y.Z
+helm install eve-build oci://ghcr.io/zznathans/eve-build-chart --version X.Y.Z
 ```
 
 It deploys a Deployment + Service exposing `/` and `/health` — no chart-owned

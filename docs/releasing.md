@@ -14,8 +14,10 @@ with a [Conventional Commits](https://www.conventionalcommits.org/) message
      with a build attestation.
    - `chart-publish.yml` packages `charts/eve-build` with `--version`/`--app-version`
      overridden from the release tag (not whatever's committed in `Chart.yaml`)
-     and pushes it as an OCI artifact to `oci://ghcr.io/zznathans/eve-build/charts` —
-     `helm install eve-build oci://ghcr.io/zznathans/eve-build/charts/eve-build --version X.Y.Z`.
+     and pushes it as an OCI artifact to `oci://ghcr.io/zznathans` (as chart
+     `eve-build-chart`, not `eve-build`, so it doesn't collide with the Docker
+     image's own tags at `ghcr.io/zznathans/eve-build`) —
+     `helm install eve-build oci://ghcr.io/zznathans/eve-build-chart --version X.Y.Z`.
 
 `Chart.yaml`'s committed `version`/`appVersion` only matter for local
 `helm lint`/`helm unittest` — they're not what gets published. `eveBuild.imageTag`
