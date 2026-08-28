@@ -1,3 +1,5 @@
+import re
+
 from motor.motor_asyncio import AsyncIOMotorCollection, AsyncIOMotorDatabase
 from redis.asyncio import Redis
 
@@ -65,3 +67,43 @@ async def category_docs(
 
 async def list_all_planet_schematics(db: AsyncIOMotorDatabase) -> list[dict[str, object]]:
     return await db.sde_planet_schematics.find({}).to_list(None)
+
+
+async def search_blueprints_by_name(
+    db: AsyncIOMotorDatabase, query: str, limit: int = 50
+) -> list[dict[str, object]]:
+    """Search every blueprint in the game (not just ones a character owns) by product/blueprint
+    name. Joins sde_blueprints -> sde_types in one aggregation rather than fetching the full
+    ~8000-blueprint catalog into Python, since sde_blueprints docs don't carry a name of their
+    own."""
+    pipeline: list[dict[str, object]] = [
+        {
+            "$lookup": {
+                "from": "sde_types",
+                "localField": "_id",
+                "foreignField": "_id",
+                "as": "type",
+            }
+        },
+        {"$unwind": "$type"},
+        {
+            "$match": {
+                "type.name": {"$regex": re.escape(query), "$options": "i"},
+                "type.published": True,
+            }
+        },
+        {"$sort": {"type.name": 1}},
+        {"$limit": limit},
+        {
+            "$project": {
+                "_id": 1,
+                "materials": 1,
+                "product_type_id": 1,
+                "product_quantity": 1,
+                "manufacturing_time_seconds": 1,
+                "name": "$type.name",
+                "tech_level": "$type.tech_level",
+            }
+        },
+    ]
+    return await db.sde_blueprints.aggregate(pipeline).to_list(None)
