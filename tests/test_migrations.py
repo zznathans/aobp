@@ -35,14 +35,17 @@ _TABLE_FIXTURES: dict[str, list[dict[str, object]]] = {
     "industryActivityProducts": [
         {"typeID": 588, "activityID": 1, "productTypeID": 587, "quantity": 1}
     ],
-    "planetSchematics": [
-        {"schematicID": 65, "schematicName": "Superconductors", "cycleTime": 3600}
-    ],
-    "planetSchematicsTypeMap": [
-        {"schematicID": 65, "typeID": 34, "quantity": 40, "isInput": 1},
-        {"schematicID": 65, "typeID": 587, "quantity": 5, "isInput": 0},
-    ],
 }
+
+
+_PLANET_SCHEMATICS_FIXTURE: list[dict[str, object]] = [
+    {"schematicID": 65, "schematicName": "Superconductors", "cycleTime": 3600}
+]
+
+_PLANET_SCHEMATICS_TYPE_MAP_FIXTURE: list[dict[str, object]] = [
+    {"schematicID": 65, "typeID": 34, "quantity": 40, "isInput": 1},
+    {"schematicID": 65, "typeID": 587, "quantity": 5, "isInput": 0},
+]
 
 
 _INV_GROUPS_FIXTURE: list[dict[str, object]] = [
@@ -61,13 +64,17 @@ def _write_fixtures(data_dir: Path) -> None:
     for table_name, rows in _TABLE_FIXTURES.items():
         with gzip.open(data_dir / f"{table_name}.json.gz", "wt", encoding="utf-8") as fh:
             json.dump(rows, fh)
-    # invGroups/invCategories aren't among the raw tables 0001 imports (nothing else reads the
-    # full tables) - 0004/0005 read them straight off disk, so they need their own fixture
-    # files rather than a Mongo one.
+    # invGroups/invCategories/planetSchematics* aren't among the raw tables 0001 imports
+    # (nothing else reads the full tables) - 0004/0005/0006 read them straight off disk, so
+    # they need their own fixture files rather than a Mongo one.
     with gzip.open(data_dir / "invGroups.json.gz", "wt", encoding="utf-8") as fh:
         json.dump(_INV_GROUPS_FIXTURE, fh)
     with gzip.open(data_dir / "invCategories.json.gz", "wt", encoding="utf-8") as fh:
         json.dump(_INV_CATEGORIES_FIXTURE, fh)
+    with gzip.open(data_dir / "planetSchematics.json.gz", "wt", encoding="utf-8") as fh:
+        json.dump(_PLANET_SCHEMATICS_FIXTURE, fh)
+    with gzip.open(data_dir / "planetSchematicsTypeMap.json.gz", "wt", encoding="utf-8") as fh:
+        json.dump(_PLANET_SCHEMATICS_TYPE_MAP_FIXTURE, fh)
 
 
 def _settings(data_dir: Path) -> Settings:
@@ -100,8 +107,6 @@ async def test_run_migrations_populates_raw_and_lookup_collections(tmp_path: Pat
         "0001_import_raw_sde_tables:industryActivity",
         "0001_import_raw_sde_tables:industryActivityMaterials",
         "0001_import_raw_sde_tables:industryActivityProducts",
-        "0001_import_raw_sde_tables:planetSchematics",
-        "0001_import_raw_sde_tables:planetSchematicsTypeMap",
         "0002_build_sde_lookup_collections",
         "0003_add_volume_to_sde_types",
         "0004_add_category_id_to_sde_types",
@@ -156,7 +161,7 @@ async def test_run_migrations_is_idempotent(tmp_path: Path) -> None:
     await run_migrations(db, settings)
     await run_migrations(db, settings)
 
-    assert await db["_migrations"].count_documents({}) == 12
+    assert await db["_migrations"].count_documents({}) == 10
     assert await db["sde_blueprints"].count_documents({}) == 1
 
 
@@ -184,8 +189,6 @@ async def test_failed_migration_is_not_recorded_and_retries(
         "0001_import_raw_sde_tables:industryActivity",
         "0001_import_raw_sde_tables:industryActivityMaterials",
         "0001_import_raw_sde_tables:industryActivityProducts",
-        "0001_import_raw_sde_tables:planetSchematics",
-        "0001_import_raw_sde_tables:planetSchematicsTypeMap",
     }
 
     monkeypatch.undo()
@@ -237,8 +240,6 @@ async def test_import_raw_sde_tables_resumes_after_partial_failure(
         "0001_import_raw_sde_tables:industryActivity",
         "0001_import_raw_sde_tables:industryActivityMaterials",
         "0001_import_raw_sde_tables:industryActivityProducts",
-        "0001_import_raw_sde_tables:planetSchematics",
-        "0001_import_raw_sde_tables:planetSchematicsTypeMap",
         "0002_build_sde_lookup_collections",
         "0003_add_volume_to_sde_types",
         "0004_add_category_id_to_sde_types",

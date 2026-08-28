@@ -15,16 +15,14 @@ _BATCH_SIZE = 5000
 
 # The SDE ships ~180 raw tables, most totaling hundreds of MB uncompressed
 # (e.g. trnTranslations, mapDenormalize, mapCelestialStatistics) - only these
-# are ever read downstream (by 0002_build_sde_lookup_collections and
-# 0006_build_sde_planet_schematics), so that's all that gets imported.
+# are ever read downstream (by 0002_build_sde_lookup_collections), so that's
+# all that gets imported.
 _REQUIRED_TABLES = frozenset(
     {
         "invTypes",
         "industryActivity",
         "industryActivityMaterials",
         "industryActivityProducts",
-        "planetSchematics",
-        "planetSchematicsTypeMap",
     }
 )
 
