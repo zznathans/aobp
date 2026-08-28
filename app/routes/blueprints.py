@@ -32,6 +32,7 @@ _LIST_STYLE = """
   h1 { font-size: 1.4rem; margin: 0 0 1.5rem; }
   h2 { font-size: 1.05rem; margin: 1.5rem 0 0.75rem; }
   h2:first-of-type { margin-top: 0; }
+  .catalog-link { margin-bottom: 1.25rem; }
   .filters {
     display: flex; gap: 1.25rem; align-items: center;
     margin-bottom: 1.25rem; font-size: 0.85rem; color: #9aa4b2;
@@ -238,9 +239,14 @@ async def list_blueprints(
         db, redis, settings, character.access_token, character.character_id
     )
 
+    catalog_link = (
+        '<a class="btn btn-secondary catalog-link" href="/blueprints/catalog">'
+        "Search all blueprints</a>"
+    )
+
     if not blueprints:
         filters_form = _render_filters_form(selected, sort, direction, location, search, [])
-        body = f'<div class="page"><h1>Blueprints</h1>{filters_form}' + (
+        body = f'<div class="page"><h1>Blueprints</h1>{catalog_link}{filters_form}' + (
             '<p class="empty">No blueprints found.</p></div>'
         )
         return HTMLResponse(render_page("Blueprints", body, _LIST_STYLE, character=character))
@@ -429,10 +435,160 @@ async def list_blueprints(
 
     body = f"""<div class="page">
       <h1>Blueprints</h1>
+      {catalog_link}
       {filters_form}
       {sections}
     </div>"""
     return HTMLResponse(render_page("Blueprints", body, _LIST_STYLE, character=character))
+
+
+@router.get("/catalog", response_class=HTMLResponse)
+async def blueprint_catalog(
+    character: CharacterDocument = Depends(get_current_character),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    q: str = Query(default=""),
+) -> HTMLResponse:
+    query = q.strip()
+
+    if len(query) >= 2:
+        docs = await sde.search_blueprints_by_name(db, query)
+        if not docs:
+            results_html = '<p class="empty">No blueprints match your search.</p>'
+        else:
+            rows_html = "".join(f"""
+                  <tr>
+                    <td>
+                      <a class="bp-link" href="/blueprints/catalog/{doc['_id']}">
+                        <img class="icon" src="{escape(icon_url(cast(int, doc['_id'])))}"
+                          alt="{escape(str(doc['name']))}" onerror="this.style.visibility='hidden'">
+                        <div class="name">{escape(str(doc["name"]))}
+                          {" &middot; T2" if doc.get("tech_level") == 2 else ""}</div>
+                      </a>
+                    </td>
+                  </tr>
+                """ for doc in docs)
+            results_html = f"""
+              <table class="bp-table">
+                <thead><tr><th>Blueprint</th></tr></thead>
+                <tbody>{rows_html}</tbody>
+              </table>
+            """
+    elif query:
+        results_html = '<p class="empty">Keep typing - search needs at least 2 characters.</p>'
+    else:
+        results_html = ""
+
+    search_form = f"""
+      <form method="get" class="filters">
+        <input type="text" name="q" value="{escape(query)}"
+          placeholder="Search all blueprints by name" autofocus>
+      </form>
+    """
+    body = f"""<div class="page">
+      <h1>Blueprint Catalog</h1>
+      {search_form}
+      {results_html}
+    </div>"""
+    return HTMLResponse(render_page("Blueprint Catalog", body, _LIST_STYLE, character=character))
+
+
+@router.get("/catalog/{type_id}", response_class=HTMLResponse)
+async def catalog_blueprint_detail(
+    type_id: int,
+    character: CharacterDocument = Depends(get_current_character),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    redis: Redis | None = Depends(get_redis),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    sde_blueprints = await sde.blueprint_docs(db, redis, settings, {type_id})
+    sde_blueprint = sde_blueprints.get(type_id)
+    type_docs = await sde.type_docs(db, redis, settings, {type_id})
+    blueprint_type_doc = type_docs.get(type_id)
+    if sde_blueprint is None or blueprint_type_doc is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Blueprint not found")
+
+    blueprint_name = escape(str(blueprint_type_doc.get("name", f"Type {type_id}")))
+    is_t2 = blueprint_type_doc.get("tech_level") == 2
+    blueprint_icon_url = escape(icon_url(type_id))
+    page_title = f"{blueprint_name} - eve-build"
+
+    materials = cast(list[dict[str, int]], sde_blueprint["materials"])
+    product_type_id = cast(int | None, sde_blueprint.get("product_type_id"))
+    product_quantity = cast(int, sde_blueprint.get("product_quantity", 1))
+
+    price_type_ids = {m["type_id"] for m in materials}
+    if product_type_id is not None:
+        price_type_ids.add(product_type_id)
+    prices = await market_prices.list_market_prices(db, price_type_ids)
+    price_by_type_id: dict[int, dict[str, object]] = {cast(int, p["_id"]): p for p in prices}
+
+    cost_per_run = sum(
+        material["quantity"] * market_prices.unit_price(price_by_type_id.get(material["type_id"]))
+        for material in materials
+    )
+    price_figures = f"""
+      <div>
+        <div class="figure">{format_isk(cost_per_run)}</div>
+        <div class="label">Cost / run</div>
+      </div>
+    """
+
+    product_name = ""
+    if product_type_id is not None:
+        product_type_docs = await sde.type_docs(db, redis, settings, {product_type_id})
+        product_name = str(product_type_docs.get(product_type_id, {}).get("name", ""))
+        output_per_run = product_quantity * market_prices.unit_price(
+            price_by_type_id.get(product_type_id)
+        )
+        price_figures += f"""
+          <div>
+            <div class="figure">{format_isk(output_per_run)}</div>
+            <div class="label">Output / run</div>
+          </div>
+          <div>
+            <div class="figure">{format_isk(output_per_run - cost_per_run)}</div>
+            <div class="label">Profit / run</div>
+          </div>
+        """
+
+    produced_text = (
+        f"&middot; Produces {escape(product_name)} &times;{product_quantity}"
+        if product_name
+        else ""
+    )
+    header = f"""
+      <div class="header">
+        <img class="icon" src="{blueprint_icon_url}" alt="{blueprint_name}"
+          onerror="this.style.visibility='hidden'">
+        <div>
+          <div class="name">{blueprint_name}</div>
+          <div class="meta">{"T2" if is_t2 else "T1"} {produced_text}</div>
+        </div>
+      </div>
+    """
+
+    material_type_ids = {m["type_id"] for m in materials}
+    material_docs = await sde.type_docs(db, redis, settings, material_type_ids)
+
+    def _material_name(type_id: int) -> str:
+        return str(material_docs.get(type_id, {}).get("name", f"Type {type_id}"))
+
+    rows = "".join(f"""
+          <tr>
+            <td>{escape(_material_name(material["type_id"]))}</td>
+            <td>{material["quantity"]}</td>
+          </tr>
+        """ for material in materials)
+
+    body = f"""<div class="page">{header}
+      <div class="summary">{price_figures}</div>
+      <table>
+        <thead><tr><th>Material</th><th>Quantity / run</th></tr></thead>
+        <tbody>{rows}</tbody>
+      </table>
+      <a class="btn btn-secondary back" href="/blueprints/catalog">Back to search</a>
+    </div>"""
+    return HTMLResponse(render_page(page_title, body, _DETAIL_STYLE, character=character))
 
 
 @router.get("/{item_id}", response_class=HTMLResponse)
