@@ -27,13 +27,32 @@ _TABLE_FIXTURES: dict[str, list[dict[str, object]]] = {
             "published": 1,
             "techLevel": None,
         },
+        {
+            "typeID": 990,
+            "typeName": "Fullerene-C50",
+            "groupID": 18,
+            "published": 1,
+            "techLevel": None,
+        },
+        {
+            "typeID": 989,
+            "typeName": "Methanofullerene Reaction Formula",
+            "groupID": 25,
+            "published": 1,
+            "techLevel": None,
+        },
     ],
-    "industryActivity": [{"typeID": 588, "activityID": 1, "time": 1200}],
+    "industryActivity": [
+        {"typeID": 588, "activityID": 1, "time": 1200},
+        {"typeID": 989, "activityID": 11, "time": 1800},
+    ],
     "industryActivityMaterials": [
-        {"typeID": 588, "activityID": 1, "materialTypeID": 34, "quantity": 4500}
+        {"typeID": 588, "activityID": 1, "materialTypeID": 34, "quantity": 4500},
+        {"typeID": 989, "activityID": 11, "materialTypeID": 34, "quantity": 100},
     ],
     "industryActivityProducts": [
-        {"typeID": 588, "activityID": 1, "productTypeID": 587, "quantity": 1}
+        {"typeID": 588, "activityID": 1, "productTypeID": 587, "quantity": 1},
+        {"typeID": 989, "activityID": 11, "productTypeID": 990, "quantity": 100},
     ],
 }
 
@@ -113,11 +132,12 @@ async def test_run_migrations_populates_raw_and_lookup_collections(tmp_path: Pat
         "0005_import_sde_categories",
         "0006_build_sde_planet_schematics",
         "0007_rebuild_sde_planet_schematics",
+        "0008_add_reaction_formulas_to_sde_blueprints",
     }
 
-    assert await db["invTypes"].count_documents({}) == 3
-    assert await db["sde_types"].count_documents({}) == 3
-    assert await db["sde_blueprints"].count_documents({}) == 1
+    assert await db["invTypes"].count_documents({}) == 5
+    assert await db["sde_types"].count_documents({}) == 5
+    assert await db["sde_blueprints"].count_documents({}) == 2
 
     superconductors = await db["sde_planet_schematics"].find_one({"_id": 65})
     assert superconductors == {
@@ -135,6 +155,17 @@ async def test_run_migrations_populates_raw_and_lookup_collections(tmp_path: Pat
         "product_quantity": 1,
         "manufacturing_time_seconds": 1200,
         "materials": [{"type_id": 34, "quantity": 4500}],
+        "activity_id": 1,
+    }
+
+    reaction_formula = await db["sde_blueprints"].find_one({"_id": 989})
+    assert reaction_formula == {
+        "_id": 989,
+        "product_type_id": 990,
+        "product_quantity": 100,
+        "manufacturing_time_seconds": 1800,
+        "materials": [{"type_id": 34, "quantity": 100}],
+        "activity_id": 11,
     }
 
     tritanium = await db["sde_types"].find_one({"_id": 34})
@@ -190,8 +221,8 @@ async def test_run_migrations_is_idempotent(tmp_path: Path) -> None:
     await run_migrations(db, settings)
     await run_migrations(db, settings)
 
-    assert await db["_migrations"].count_documents({}) == 11
-    assert await db["sde_blueprints"].count_documents({}) == 1
+    assert await db["_migrations"].count_documents({}) == 12
+    assert await db["sde_blueprints"].count_documents({}) == 2
 
 
 async def test_failed_migration_is_not_recorded_and_retries(
@@ -256,7 +287,7 @@ async def test_import_raw_sde_tables_resumes_after_partial_failure(
         "0001_import_raw_sde_tables:industryActivityMaterials",
         "0001_import_raw_sde_tables:industryActivityProducts",
     }
-    assert await db["industryActivityProducts"].count_documents({}) == 1
+    assert await db["industryActivityProducts"].count_documents({}) == 2
     assert await db["invTypes"].count_documents({}) == 0
 
     monkeypatch.undo()
@@ -275,5 +306,6 @@ async def test_import_raw_sde_tables_resumes_after_partial_failure(
         "0005_import_sde_categories",
         "0006_build_sde_planet_schematics",
         "0007_rebuild_sde_planet_schematics",
+        "0008_add_reaction_formulas_to_sde_blueprints",
     }
-    assert await db["invTypes"].count_documents({}) == 3
+    assert await db["invTypes"].count_documents({}) == 5

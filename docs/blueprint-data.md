@@ -12,6 +12,12 @@ On startup, `app/migrations/` imports it into MongoDB automatically:
 - `0002_build_sde_lookup_collections` builds `sde_types` (type_id → name) and
   `sde_blueprints` (blueprint type_id → manufacturing materials/products/time) from those
   raw collections — this is what `app/routes/blueprints.py` actually queries.
+- `0008_add_reaction_formulas_to_sde_blueprints` adds reaction formulas (SDE
+  `activityID = 11`) into the same `sde_blueprints` collection, alongside the
+  manufacturing docs `0002` produced (`activityID = 1`). Every `sde_blueprints` doc
+  carries an `activity_id` field (`1` = manufacturing, `11` = reactions) so callers can
+  tell them apart; reaction formula type IDs never collide with manufacturing blueprint
+  type IDs, so both activities share one collection.
 
 Applied migrations are tracked in a `_migrations` collection, so this only runs once —
 later startups skip straight past it. First startup against an empty database takes a

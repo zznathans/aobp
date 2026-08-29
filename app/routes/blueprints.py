@@ -90,8 +90,17 @@ _DETAIL_STYLE = """
 """
 
 
+_REACTIONS_ACTIVITY_ID = 11
+
+
 def _material_quantity_per_run(base_quantity: int, material_efficiency: int) -> int:
     return max(1, math.ceil(base_quantity * (1 - material_efficiency / 100)))
+
+
+def _tech_level_label(is_reaction: bool, is_t2: bool) -> str:
+    if is_reaction:
+        return "Reaction formula"
+    return "T2" if is_t2 else "T1"
 
 
 def _readiness_percentages(
@@ -508,6 +517,7 @@ async def catalog_blueprint_detail(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Blueprint not found")
 
     blueprint_name = escape(str(blueprint_type_doc.get("name", f"Type {type_id}")))
+    is_reaction = sde_blueprint.get("activity_id") == _REACTIONS_ACTIVITY_ID
     is_t2 = blueprint_type_doc.get("tech_level") == 2
     blueprint_icon_url = escape(icon_url(type_id))
     page_title = f"{blueprint_name} - eve-build"
@@ -562,7 +572,7 @@ async def catalog_blueprint_detail(
           onerror="this.style.visibility='hidden'">
         <div>
           <div class="name">{blueprint_name}</div>
-          <div class="meta">{"T2" if is_t2 else "T1"} {produced_text}</div>
+          <div class="meta">{_tech_level_label(is_reaction, is_t2)} {produced_text}</div>
         </div>
       </div>
     """

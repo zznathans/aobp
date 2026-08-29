@@ -101,6 +101,7 @@ async def search_blueprints_by_name(
                 "product_type_id": 1,
                 "product_quantity": 1,
                 "manufacturing_time_seconds": 1,
+                "activity_id": 1,
                 "name": "$type.name",
                 "tech_level": "$type.tech_level",
             }
