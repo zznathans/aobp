@@ -37,9 +37,7 @@ async def job_detail(
     redis: Redis | None = Depends(get_redis),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
-    jobs = await character_data.get_character_industry_jobs(
-        db, redis, settings, character.access_token, character.character_id
-    )
+    jobs, _ = await character_data.get_merged_industry_jobs(db, redis, settings, character)
     job = next((j for j in jobs if j.job_id == job_id), None)
     if job is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found")

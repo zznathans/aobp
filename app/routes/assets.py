@@ -275,9 +275,7 @@ async def list_assets(
     redis: Redis | None = Depends(get_redis),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
-    assets = await character_data.get_character_assets(
-        db, redis, settings, character.access_token, character.character_id
-    )
+    assets, corp_included = await character_data.get_merged_assets(db, redis, settings, character)
 
     if not assets:
         body = '<div class="page"><h1>Assets</h1><p class="empty">No assets found.</p></div>'
@@ -308,7 +306,9 @@ async def list_assets(
     )
     total_locations = len(set(resolved_location_by_item_id.values()))
 
+    corp_note = '<p class="empty">Includes corporation assets.</p>' if corp_included else ""
     stats = f"""
+      {corp_note}
       <div class="stat-grid">
         <div class="stat-card">
           <div class="figure">{format_number(total_quantity)}</div>
@@ -365,9 +365,7 @@ async def item_detail(
     redis: Redis | None = Depends(get_redis),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
-    assets = await character_data.get_character_assets(
-        db, redis, settings, character.access_token, character.character_id
-    )
+    assets, _ = await character_data.get_merged_assets(db, redis, settings, character)
     assets_by_item_id = {asset.item_id: asset for asset in assets}
     matching = [asset for asset in assets if asset.type_id == type_id]
     if not matching:
@@ -484,9 +482,7 @@ async def location_detail(
     redis: Redis | None = Depends(get_redis),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
-    assets = await character_data.get_character_assets(
-        db, redis, settings, character.access_token, character.character_id
-    )
+    assets, _ = await character_data.get_merged_assets(db, redis, settings, character)
     assets_by_item_id = {asset.item_id: asset for asset in assets}
     matching = [
         asset

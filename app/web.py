@@ -224,6 +224,7 @@ def render_nav(character: CharacterDocument | None) -> str:
           <a href="/blueprints">Blueprints</a>
           <a href="/assets">Assets</a>
           <a href="/planetary">PI</a>
+          <a href="/settings">Settings</a>
         </div>
         <div class="nav-user">
           <img class="nav-avatar" src="{avatar_url}" alt="{character_name}">

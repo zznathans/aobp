@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     eve_sso_client_id: str = ""
     eve_sso_callback_url: str = ""
     eve_sso_scopes: str = ""
+    eve_sso_corp_scopes: str = ""
     eve_sso_authorize_url: str = "https://login.eveonline.com/v2/oauth/authorize"
     eve_sso_token_url: str = "https://login.eveonline.com/v2/oauth/token"
     eve_sso_jwks_url: str = "https://login.eveonline.com/oauth/jwks"

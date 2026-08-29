@@ -193,15 +193,9 @@ async def read_root(
     if character is None:
         return HTMLResponse(_render_login())
 
-    blueprints = await character_data.get_character_blueprints(
-        db, redis, settings, character.access_token, character.character_id
-    )
-    assets = await character_data.get_character_assets(
-        db, redis, settings, character.access_token, character.character_id
-    )
-    jobs = await character_data.get_character_industry_jobs(
-        db, redis, settings, character.access_token, character.character_id
-    )
+    blueprints, _ = await character_data.get_merged_blueprints(db, redis, settings, character)
+    assets, _ = await character_data.get_merged_assets(db, redis, settings, character)
+    jobs, _ = await character_data.get_merged_industry_jobs(db, redis, settings, character)
     active_jobs = [job for job in jobs if job.status == "active"]
     blueprint_type_docs = await sde.type_docs(
         db, redis, settings, {job.blueprint_type_id for job in active_jobs}
