@@ -10,7 +10,7 @@ from redis.asyncio import Redis
 from app.core.config import Settings, get_settings
 from app.db.mongo import get_database
 from app.db.redis import get_redis
-from app.deps import get_current_character
+from app.deps import get_current_character_optional
 from app.models.character import CharacterDocument
 from app.services import market_prices, sde
 from app.web import format_isk, item_icon_url, render_page
@@ -127,7 +127,7 @@ def _expand_to_tier(
 
 @router.get("", response_class=HTMLResponse)
 async def list_planet_schematics(
-    character: CharacterDocument = Depends(get_current_character),
+    character: CharacterDocument | None = Depends(get_current_character_optional),
     db: AsyncIOMotorDatabase = Depends(get_database),
     redis: Redis | None = Depends(get_redis),
     settings: Settings = Depends(get_settings),
@@ -297,7 +297,7 @@ async def list_planet_schematics(
 @router.get("/{schematic_id}", response_class=HTMLResponse)
 async def planet_schematic_detail(
     schematic_id: int,
-    character: CharacterDocument = Depends(get_current_character),
+    character: CharacterDocument | None = Depends(get_current_character_optional),
     db: AsyncIOMotorDatabase = Depends(get_database),
     redis: Redis | None = Depends(get_redis),
     settings: Settings = Depends(get_settings),

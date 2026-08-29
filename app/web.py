@@ -208,6 +208,10 @@ def render_nav(character: CharacterDocument | None) -> str:
         return """
           <nav class="navbar">
             <a class="brand" href="/">eve-build</a>
+            <div class="nav-links">
+              <a href="/blueprints/catalog">Blueprint Catalog</a>
+              <a href="/planetary">Planetary Industry</a>
+            </div>
             <a class="btn btn-primary" href="/auth/login">Log in with EVE Online</a>
           </nav>
         """

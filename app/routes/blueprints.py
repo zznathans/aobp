@@ -12,7 +12,7 @@ from redis.asyncio import Redis
 from app.core.config import Settings, get_settings
 from app.db.mongo import get_database
 from app.db.redis import get_redis
-from app.deps import get_current_character
+from app.deps import get_current_character, get_current_character_optional
 from app.models.character import CharacterDocument
 from app.services import character_data, locations, market_prices, sde
 from app.services.locations import resolve_container_chain as _resolve_container_chain
@@ -459,7 +459,7 @@ async def list_blueprints(
 
 @router.get("/catalog", response_class=HTMLResponse)
 async def blueprint_catalog(
-    character: CharacterDocument = Depends(get_current_character),
+    character: CharacterDocument | None = Depends(get_current_character_optional),
     db: AsyncIOMotorDatabase = Depends(get_database),
     q: str = Query(default=""),
 ) -> HTMLResponse:
@@ -510,7 +510,7 @@ async def blueprint_catalog(
 @router.get("/catalog/{type_id}", response_class=HTMLResponse)
 async def catalog_blueprint_detail(
     type_id: int,
-    character: CharacterDocument = Depends(get_current_character),
+    character: CharacterDocument | None = Depends(get_current_character_optional),
     db: AsyncIOMotorDatabase = Depends(get_database),
     redis: Redis | None = Depends(get_redis),
     settings: Settings = Depends(get_settings),

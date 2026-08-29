@@ -196,3 +196,31 @@ async def test_catalog_detail_404_for_unknown_blueprint(
     response = client.get("/blueprints/catalog/999999")
 
     assert response.status_code == 404
+
+
+async def test_catalog_search_works_without_logging_in(
+    client: TestClient,
+    mongo_db: AsyncMongoMockClient,
+) -> None:
+    await _seed_catalog(mongo_db)
+
+    response = client.get("/blueprints/catalog", params={"q": "rIfTeR"})
+
+    assert response.status_code == 200
+    assert "Rifter Blueprint" in response.text
+    assert "Log in with EVE Online" in response.text
+    assert 'href="/blueprints/catalog"' in response.text
+    assert 'href="/planetary"' in response.text
+
+
+async def test_catalog_detail_works_without_logging_in(
+    client: TestClient,
+    mongo_db: AsyncMongoMockClient,
+) -> None:
+    await _seed_catalog(mongo_db)
+
+    response = client.get(f"/blueprints/catalog/{RIFTER_BLUEPRINT_TYPE_ID}")
+
+    assert response.status_code == 200
+    assert "Rifter Blueprint" in response.text
+    assert "Log in with EVE Online" in response.text
