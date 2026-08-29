@@ -75,8 +75,11 @@ def _connect_corp(
         return_value=Response(200, json={"corporation_id": CORPORATION_ID})
     )
 
+    # EVE SSO redirects back to the single registered callback URL for both flows
+    # (see app/routes/auth.py) - hitting /auth/callback here, not a dedicated
+    # connect-corp callback route, is what actually exercises that.
     return client.get(
-        "/auth/connect-corp/callback",
+        "/auth/callback",
         params={"code": "corp-auth-code", "state": state},
         follow_redirects=False,
     )

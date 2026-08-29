@@ -29,11 +29,16 @@ requests only `EVE_SSO_CORP_SCOPES` (also configured in `.env`, and also needing
 to be enabled on the application at developers.eveonline.com), so a character's
 base login never prompts for corp permissions unless they explicitly opt in.
 
-`GET /auth/connect-corp` starts this second PKCE flow; `GET
-/auth/connect-corp/callback` completes it and stores a second token pair
-(`corp_access_token`/`corp_refresh_token`) on the character, rejecting the
-callback if it was completed as a different character than the one who started
-it. `GET /auth/disconnect-corp` clears the corp token pair — corp data is opt-in
+`GET /auth/connect-corp` starts this second PKCE flow. It completes on the
+*same* `GET /auth/callback` route the base login uses — EVE SSO requires the
+authorize request's `redirect_uri` to exactly match what's registered on the
+application, so rather than registering a second callback URL, `/auth/callback`
+tells the two flows apart by which pending session state (`pkce_state` vs
+`corp_pkce_state`) the incoming `state` param matches, and completes the corp
+connection by storing a second token pair (`corp_access_token`/
+`corp_refresh_token`) on the already-logged-in character, rejecting it if it was
+completed as a different character than the one who started it.
+`GET /auth/disconnect-corp` clears the corp token pair — corp data is opt-in
 both ways.
 
 Corp assets and corp blueprints (`esi-assets.read_corporation_assets.v1`,
