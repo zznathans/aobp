@@ -43,12 +43,14 @@ def generate_state() -> str:
     return secrets.token_urlsafe(32)
 
 
-def build_authorize_url(settings: Settings, *, code_challenge: str, state: str) -> str:
+def build_authorize_url(
+    settings: Settings, *, code_challenge: str, state: str, scope: str | None = None
+) -> str:
     params = {
         "response_type": "code",
         "redirect_uri": settings.eve_sso_callback_url,
         "client_id": settings.eve_sso_client_id,
-        "scope": settings.eve_sso_scopes,
+        "scope": scope if scope is not None else settings.eve_sso_scopes,
         "code_challenge": code_challenge,
         "code_challenge_method": "S256",
         "state": state,

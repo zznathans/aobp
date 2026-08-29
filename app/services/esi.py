@@ -153,6 +153,108 @@ async def get_character_assets(
     ]
 
 
+async def get_character_public_info(settings: Settings, character_id: int) -> int:
+    """Returns the character's corporation_id. Unauthenticated - ESI's
+    /characters/{character_id}/ endpoint is public."""
+    url = f"{settings.esi_base_url}/characters/{character_id}/"
+    headers = _headers(settings, None)
+
+    async with httpx.AsyncClient() as client:
+        response = await _timed_get(client, url, endpoint="characters/public_info", headers=headers)
+
+    return int(response.json()["corporation_id"])
+
+
+async def get_corporation_name(settings: Settings, corporation_id: int) -> str | None:
+    """Unauthenticated - ESI's /corporations/{corporation_id}/ endpoint is public."""
+    url = f"{settings.esi_base_url}/corporations/{corporation_id}/"
+    headers = _headers(settings, None)
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await _timed_get(
+                client, url, endpoint="corporations/public_info", headers=headers
+            )
+        except httpx.HTTPStatusError:
+            return None
+
+    name = response.json().get("name")
+    return name if isinstance(name, str) else None
+
+
+async def get_corporation_assets(
+    settings: Settings, access_token: str, corporation_id: int
+) -> list[AssetEntry]:
+    raw_entries = await _get_all_pages(
+        settings,
+        access_token,
+        f"/corporations/{corporation_id}/assets",
+        endpoint="corporations/assets",
+    )
+    return [
+        AssetEntry(
+            item_id=entry["item_id"],
+            type_id=entry["type_id"],
+            location_id=entry["location_id"],
+            location_flag=entry["location_flag"],
+            location_type=entry["location_type"],
+            quantity=entry["quantity"],
+            is_singleton=entry["is_singleton"],
+        )
+        for entry in raw_entries
+    ]
+
+
+async def get_corporation_blueprints(
+    settings: Settings, access_token: str, corporation_id: int
+) -> list[BlueprintEntry]:
+    raw_entries = await _get_all_pages(
+        settings,
+        access_token,
+        f"/corporations/{corporation_id}/blueprints",
+        endpoint="corporations/blueprints",
+    )
+    return [
+        BlueprintEntry(
+            item_id=entry["item_id"],
+            type_id=entry["type_id"],
+            location_id=entry["location_id"],
+            location_flag=entry["location_flag"],
+            quantity=entry["quantity"],
+            runs=entry["runs"],
+            material_efficiency=entry["material_efficiency"],
+            time_efficiency=entry["time_efficiency"],
+        )
+        for entry in raw_entries
+    ]
+
+
+async def get_corporation_industry_jobs(
+    settings: Settings, access_token: str, corporation_id: int
+) -> list[IndustryJobEntry]:
+    raw_entries = await _get_all_pages(
+        settings,
+        access_token,
+        f"/corporations/{corporation_id}/industry/jobs",
+        endpoint="corporations/industry_jobs",
+    )
+    return [
+        IndustryJobEntry(
+            job_id=entry["job_id"],
+            activity_id=entry["activity_id"],
+            blueprint_id=entry["blueprint_id"],
+            blueprint_type_id=entry["blueprint_type_id"],
+            product_type_id=entry.get("product_type_id"),
+            facility_id=entry["facility_id"],
+            runs=entry["runs"],
+            status=entry["status"],
+            start_date=entry["start_date"],
+            end_date=entry["end_date"],
+        )
+        for entry in raw_entries
+    ]
+
+
 async def get_character_industry_jobs(
     settings: Settings, access_token: str, character_id: int
 ) -> list[IndustryJobEntry]:

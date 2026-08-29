@@ -244,8 +244,8 @@ async def list_blueprints(
     direction = dir if dir in ("asc", "desc") else "asc"
     search_query = search.strip().lower()
 
-    blueprints = await character_data.get_character_blueprints(
-        db, redis, settings, character.access_token, character.character_id
+    blueprints, corp_blueprints_included = await character_data.get_merged_blueprints(
+        db, redis, settings, character
     )
 
     catalog_link = (
@@ -278,8 +278,8 @@ async def list_blueprints(
     }
     category_docs = await sde.category_docs(db, redis, settings, category_ids)
 
-    assets = await character_data.get_character_assets(
-        db, redis, settings, character.access_token, character.character_id
+    assets, corp_assets_included = await character_data.get_merged_assets(
+        db, redis, settings, character
     )
     assets_by_item_id = {asset.item_id: asset for asset in assets}
     global_totals: dict[int, int] = {}
@@ -442,9 +442,15 @@ async def list_blueprints(
               </table>
             """ for category_name in category_names)
 
+    corp_note = (
+        '<p class="empty">Includes corporation blueprints and/or assets.</p>'
+        if corp_blueprints_included or corp_assets_included
+        else ""
+    )
     body = f"""<div class="page">
       <h1>Blueprints</h1>
       {catalog_link}
+      {corp_note}
       {filters_form}
       {sections}
     </div>"""
@@ -609,16 +615,12 @@ async def blueprint_detail(
     redis: Redis | None = Depends(get_redis),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
-    blueprints = await character_data.get_character_blueprints(
-        db, redis, settings, character.access_token, character.character_id
-    )
+    blueprints, _ = await character_data.get_merged_blueprints(db, redis, settings, character)
     blueprint = next((bp for bp in blueprints if bp.item_id == item_id), None)
     if blueprint is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Blueprint not found")
 
-    assets = await character_data.get_character_assets(
-        db, redis, settings, character.access_token, character.character_id
-    )
+    assets, _ = await character_data.get_merged_assets(db, redis, settings, character)
     assets_by_item_id = {asset.item_id: asset for asset in assets}
 
     is_copy = blueprint.quantity == -2 or blueprint.runs != -1

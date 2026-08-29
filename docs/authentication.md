@@ -19,3 +19,32 @@ The dashboard and blueprint library need `esi-characters.read_blueprints.v1`,
 without it those fall back to a raw `Location {id}` label) in `EVE_SSO_SCOPES`
 — all four must also be enabled on the application itself at
 developers.eveonline.com, or EVE SSO rejects the login with `invalid_scope`.
+
+## Corporation data (optional)
+
+A logged-in character can additionally connect their corporation's assets,
+blueprints, and industry jobs via `GET /settings` → "Connect corporation data".
+This is a **separate, incremental OAuth grant** from the base login above — it
+requests only `EVE_SSO_CORP_SCOPES` (also configured in `.env`, and also needing
+to be enabled on the application at developers.eveonline.com), so a character's
+base login never prompts for corp permissions unless they explicitly opt in.
+
+`GET /auth/connect-corp` starts this second PKCE flow; `GET
+/auth/connect-corp/callback` completes it and stores a second token pair
+(`corp_access_token`/`corp_refresh_token`) on the character, rejecting the
+callback if it was completed as a different character than the one who started
+it. `GET /auth/disconnect-corp` clears the corp token pair — corp data is opt-in
+both ways.
+
+Corp assets and corp blueprints (`esi-assets.read_corporation_assets.v1`,
+`esi-corporations.read_blueprints.v1`) require the character to hold the
+**Director** role in their corporation; corp industry jobs
+(`esi-industry.read_corporation_jobs.v1`) allows Director or Factory_Manager.
+ESI enforces this per-call, independent of what scopes were granted, so a
+connected character without the right role still gets a 403 from the
+corresponding endpoint — the app treats that as "no permission" (shown per-source
+on `/settings`) rather than an error, since roles can change over time.
+
+When connected, corp assets/blueprints/jobs are merged into the same totals as
+the character's personal data on `/assets`, `/blueprints`, `/jobs/{job_id}`, and
+the dashboard (see `app/services/character_data.py`'s `get_merged_*` functions).
