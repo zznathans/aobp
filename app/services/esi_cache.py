@@ -60,6 +60,30 @@ async def cached_character_list(
     return entries
 
 
+async def invalidate_character_list(
+    db: AsyncIOMotorDatabase,
+    redis: Redis | None,
+    *,
+    collection_name: str,
+    cache_key_prefix: str,
+    character_id: int,
+) -> None:
+    await db[collection_name].delete_many({"character_id": character_id})
+    await cache.delete_cached(redis, [f"{cache_key_prefix}:{character_id}"])
+
+
+async def invalidate_corporation_list(
+    db: AsyncIOMotorDatabase,
+    redis: Redis | None,
+    *,
+    collection_name: str,
+    cache_key_prefix: str,
+    corporation_id: int,
+) -> None:
+    await db[collection_name].delete_many({"corporation_id": corporation_id})
+    await cache.delete_cached(redis, [f"{cache_key_prefix}:{corporation_id}"])
+
+
 async def cached_corporation_list(
     db: AsyncIOMotorDatabase,
     redis: Redis | None,

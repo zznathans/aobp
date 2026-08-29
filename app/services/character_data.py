@@ -1,5 +1,7 @@
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, TypeVar, cast
+from dataclasses import dataclass
+from datetime import datetime
+from typing import TYPE_CHECKING, NamedTuple, TypeVar, cast
 
 import httpx
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -19,6 +21,27 @@ else:
 _ASSETS_CACHE_TTL_SECONDS = 60 * 60
 _BLUEPRINTS_CACHE_TTL_SECONDS = 60 * 60
 _INDUSTRY_JOBS_CACHE_TTL_SECONDS = 60 * 60
+
+
+class _Source(NamedTuple):
+    label: str
+    collection_name: str
+    cache_key_prefix: str
+
+
+_ASSETS_SOURCE = _Source("Assets", "assets", "character_assets")
+_BLUEPRINTS_SOURCE = _Source("Blueprints", "blueprints", "character_blueprints")
+_INDUSTRY_JOBS_SOURCE = _Source("Industry jobs", "industry_jobs", "character_industry_jobs")
+_CORP_ASSETS_SOURCE = _Source("Corporation assets", "corp_assets", "corporation_assets")
+_CORP_BLUEPRINTS_SOURCE = _Source(
+    "Corporation blueprints", "corp_blueprints", "corporation_blueprints"
+)
+_CORP_INDUSTRY_JOBS_SOURCE = _Source(
+    "Corporation industry jobs", "corp_industry_jobs", "corporation_industry_jobs"
+)
+
+_PERSONAL_SOURCES = (_ASSETS_SOURCE, _BLUEPRINTS_SOURCE, _INDUSTRY_JOBS_SOURCE)
+_CORP_SOURCES = (_CORP_ASSETS_SOURCE, _CORP_BLUEPRINTS_SOURCE, _CORP_INDUSTRY_JOBS_SOURCE)
 
 
 def corp_data_connected(character: CharacterDocument) -> bool:
@@ -69,8 +92,8 @@ async def get_character_assets(
     return await esi_cache.cached_character_list(
         db,
         redis,
-        collection_name="assets",
-        cache_key_prefix="character_assets",
+        collection_name=_ASSETS_SOURCE.collection_name,
+        cache_key_prefix=_ASSETS_SOURCE.cache_key_prefix,
         character_id=character_id,
         ttl_seconds=_ASSETS_CACHE_TTL_SECONDS,
         entry_type=esi.AssetEntry,
@@ -88,8 +111,8 @@ async def get_character_blueprints(
     return await esi_cache.cached_character_list(
         db,
         redis,
-        collection_name="blueprints",
-        cache_key_prefix="character_blueprints",
+        collection_name=_BLUEPRINTS_SOURCE.collection_name,
+        cache_key_prefix=_BLUEPRINTS_SOURCE.cache_key_prefix,
         character_id=character_id,
         ttl_seconds=_BLUEPRINTS_CACHE_TTL_SECONDS,
         entry_type=esi.BlueprintEntry,
@@ -107,8 +130,8 @@ async def get_character_industry_jobs(
     return await esi_cache.cached_character_list(
         db,
         redis,
-        collection_name="industry_jobs",
-        cache_key_prefix="character_industry_jobs",
+        collection_name=_INDUSTRY_JOBS_SOURCE.collection_name,
+        cache_key_prefix=_INDUSTRY_JOBS_SOURCE.cache_key_prefix,
         character_id=character_id,
         ttl_seconds=_INDUSTRY_JOBS_CACHE_TTL_SECONDS,
         entry_type=esi.IndustryJobEntry,
@@ -126,8 +149,8 @@ async def get_corporation_assets(
     return await _corp_list_or_none(
         db,
         redis,
-        collection_name="corp_assets",
-        cache_key_prefix="corporation_assets",
+        collection_name=_CORP_ASSETS_SOURCE.collection_name,
+        cache_key_prefix=_CORP_ASSETS_SOURCE.cache_key_prefix,
         corporation_id=corporation_id,
         ttl_seconds=_ASSETS_CACHE_TTL_SECONDS,
         entry_type=esi.AssetEntry,
@@ -145,8 +168,8 @@ async def get_corporation_blueprints(
     return await _corp_list_or_none(
         db,
         redis,
-        collection_name="corp_blueprints",
-        cache_key_prefix="corporation_blueprints",
+        collection_name=_CORP_BLUEPRINTS_SOURCE.collection_name,
+        cache_key_prefix=_CORP_BLUEPRINTS_SOURCE.cache_key_prefix,
         corporation_id=corporation_id,
         ttl_seconds=_BLUEPRINTS_CACHE_TTL_SECONDS,
         entry_type=esi.BlueprintEntry,
@@ -164,8 +187,8 @@ async def get_corporation_industry_jobs(
     return await _corp_list_or_none(
         db,
         redis,
-        collection_name="corp_industry_jobs",
-        cache_key_prefix="corporation_industry_jobs",
+        collection_name=_CORP_INDUSTRY_JOBS_SOURCE.collection_name,
+        cache_key_prefix=_CORP_INDUSTRY_JOBS_SOURCE.cache_key_prefix,
         corporation_id=corporation_id,
         ttl_seconds=_INDUSTRY_JOBS_CACHE_TTL_SECONDS,
         entry_type=esi.IndustryJobEntry,
@@ -250,3 +273,80 @@ async def get_merged_industry_jobs(
         personal,
         lambda token, corp_id: get_corporation_industry_jobs(db, redis, settings, token, corp_id),
     )
+
+
+@dataclass(frozen=True)
+class CachedDataSource:
+    label: str
+    count: int
+    cached_at: datetime | None
+    shared: bool
+
+
+async def data_summary(
+    db: AsyncIOMotorDatabase, character: CharacterDocument
+) -> list[CachedDataSource]:
+    """Read-only inventory of what eve-build has cached for this character - no ESI
+    calls, so the settings page stays fast and side-effect-free on GET."""
+    sources = []
+    for source in _PERSONAL_SOURCES:
+        sources.append((source, {"character_id": character.character_id}))
+    if corp_data_connected(character):
+        corporation_id = cast(int, character.corporation_id)
+        for source in _CORP_SOURCES:
+            sources.append((source, {"corporation_id": corporation_id}))
+
+    summaries = []
+    for source, query in sources:
+        count = await db[source.collection_name].count_documents(query)
+        latest = await db[source.collection_name].find_one(query, sort=[("cached_at", -1)])
+        summaries.append(
+            CachedDataSource(
+                label=source.label,
+                count=count,
+                cached_at=latest["cached_at"] if latest else None,
+                shared=source in _CORP_SOURCES,
+            )
+        )
+    return summaries
+
+
+async def refresh_character_data(
+    db: AsyncIOMotorDatabase, redis: Redis | None, character: CharacterDocument
+) -> None:
+    """Invalidates cached data so the next page view re-fetches fresh data from ESI."""
+    for source in _PERSONAL_SOURCES:
+        await esi_cache.invalidate_character_list(
+            db,
+            redis,
+            collection_name=source.collection_name,
+            cache_key_prefix=source.cache_key_prefix,
+            character_id=character.character_id,
+        )
+    if corp_data_connected(character):
+        for source in _CORP_SOURCES:
+            await esi_cache.invalidate_corporation_list(
+                db,
+                redis,
+                collection_name=source.collection_name,
+                cache_key_prefix=source.cache_key_prefix,
+                corporation_id=cast(int, character.corporation_id),
+            )
+
+
+async def clear_character_data(
+    db: AsyncIOMotorDatabase, redis: Redis | None, character: CharacterDocument
+) -> None:
+    """Deletes everything eve-build has stored about this character: cached
+    personal data (never the corp-shared collections - other connected
+    characters in the same corp still rely on those) and the character
+    document itself, including its stored access/refresh tokens."""
+    for source in _PERSONAL_SOURCES:
+        await esi_cache.invalidate_character_list(
+            db,
+            redis,
+            collection_name=source.collection_name,
+            cache_key_prefix=source.cache_key_prefix,
+            character_id=character.character_id,
+        )
+    await db.characters.delete_one({"_id": character.character_id})
