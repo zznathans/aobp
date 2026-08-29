@@ -65,6 +65,7 @@ table.
 | eveBuild.eveSso.authorizeUrl | string | `"https://login.eveonline.com/v2/oauth/authorize"` | EVE SSO authorization endpoint. |
 | eveBuild.eveSso.callbackUrl | string | `""` | Callback URL registered on the SSO application. Must match exactly. |
 | eveBuild.eveSso.clientId | string | `""` | EVE Online SSO application client ID (https://developers.eveonline.com/applications). |
+| eveBuild.eveSso.corpScopes | string | `""` | Space-separated ESI scopes for the optional, separate "connect corporation data" grant (see /settings in the app) - e.g. esi-assets.read_corporation_assets.v1, esi-corporations.read_blueprints.v1, esi-industry.read_corporation_jobs.v1. Requested only when a character opts in, not during base login. May be empty (feature stays unusable until set, but the app runs fine without it). |
 | eveBuild.eveSso.issuer | string | `"https://login.eveonline.com"` | Expected `iss` claim on SSO tokens. |
 | eveBuild.eveSso.jwksUrl | string | `"https://login.eveonline.com/oauth/jwks"` | EVE SSO JWKS endpoint, used to verify token signatures. |
 | eveBuild.eveSso.scopes | string | `""` | Space-separated ESI scopes to request during login. May be empty. |

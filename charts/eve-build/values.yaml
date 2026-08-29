@@ -60,6 +60,13 @@ eveBuild:
     callbackUrl: ""
     # -- Space-separated ESI scopes to request during login. May be empty.
     scopes: ""
+    # -- Space-separated ESI scopes for the optional, separate "connect
+    # corporation data" grant (see /settings in the app) - e.g.
+    # esi-assets.read_corporation_assets.v1, esi-corporations.read_blueprints.v1,
+    # esi-industry.read_corporation_jobs.v1. Requested only when a character
+    # opts in, not during base login. May be empty (feature stays unusable
+    # until set, but the app runs fine without it).
+    corpScopes: ""
     # -- EVE SSO authorization endpoint.
     authorizeUrl: "https://login.eveonline.com/v2/oauth/authorize"
     # -- EVE SSO token endpoint.

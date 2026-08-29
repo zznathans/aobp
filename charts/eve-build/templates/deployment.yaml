@@ -90,6 +90,8 @@ spec:
               value: {{ .Values.eveBuild.eveSso.callbackUrl | quote }}
             - name: EVE_SSO_SCOPES
               value: {{ .Values.eveBuild.eveSso.scopes | quote }}
+            - name: EVE_SSO_CORP_SCOPES
+              value: {{ .Values.eveBuild.eveSso.corpScopes | quote }}
             - name: EVE_SSO_AUTHORIZE_URL
               value: {{ .Values.eveBuild.eveSso.authorizeUrl | quote }}
             - name: EVE_SSO_TOKEN_URL
