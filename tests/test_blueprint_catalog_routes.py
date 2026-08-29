@@ -11,6 +11,8 @@ RIFTER_TYPE_ID = 587
 RIFTER_BLUEPRINT_TYPE_ID = 588
 PUNISHER_TYPE_ID = 597
 PUNISHER_BLUEPRINT_TYPE_ID = 598
+FULLERENE_TYPE_ID = 990
+REACTION_FORMULA_TYPE_ID = 989
 
 
 async def _seed_catalog(mongo_db: AsyncMongoMockClient) -> None:
@@ -31,6 +33,13 @@ async def _seed_catalog(mongo_db: AsyncMongoMockClient) -> None:
                 "published": True,
                 "tech_level": None,
             },
+            {"_id": FULLERENE_TYPE_ID, "name": "Fullerene-C50", "published": True},
+            {
+                "_id": REACTION_FORMULA_TYPE_ID,
+                "name": "Methanofullerene Reaction Formula",
+                "published": True,
+                "tech_level": None,
+            },
         ]
     )
     await mongo_db.sde_blueprints.insert_many(
@@ -41,6 +50,7 @@ async def _seed_catalog(mongo_db: AsyncMongoMockClient) -> None:
                 "product_quantity": 1,
                 "manufacturing_time_seconds": 1200,
                 "materials": [{"type_id": TRITANIUM_TYPE_ID, "quantity": 100}],
+                "activity_id": 1,
             },
             {
                 "_id": PUNISHER_BLUEPRINT_TYPE_ID,
@@ -48,6 +58,15 @@ async def _seed_catalog(mongo_db: AsyncMongoMockClient) -> None:
                 "product_quantity": 1,
                 "manufacturing_time_seconds": 1200,
                 "materials": [{"type_id": TRITANIUM_TYPE_ID, "quantity": 80}],
+                "activity_id": 1,
+            },
+            {
+                "_id": REACTION_FORMULA_TYPE_ID,
+                "product_type_id": FULLERENE_TYPE_ID,
+                "product_quantity": 100,
+                "manufacturing_time_seconds": 1800,
+                "materials": [{"type_id": TRITANIUM_TYPE_ID, "quantity": 100}],
+                "activity_id": 11,
             },
         ]
     )
@@ -128,6 +147,42 @@ async def test_catalog_detail_shows_recipe_and_profit(
     # Cost/run: 100 Tritanium * 5.0 ISK = 500 ISK. Output/run: 1 Rifter * 1000.0 ISK = 1000 ISK.
     assert "500 ISK" in response.text
     assert "1.0K ISK" in response.text
+
+
+@respx.mock
+async def test_catalog_search_matches_reaction_formulas(
+    client: TestClient,
+    test_settings: Settings,
+    mongo_db: AsyncMongoMockClient,
+    rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+) -> None:
+    _log_in(client, test_settings, rsa_key_pair)
+    await _seed_catalog(mongo_db)
+
+    response = client.get("/blueprints/catalog", params={"q": "methanofullerene"})
+
+    assert response.status_code == 200
+    assert "Methanofullerene Reaction Formula" in response.text
+    assert f'href="/blueprints/catalog/{REACTION_FORMULA_TYPE_ID}"' in response.text
+
+
+@respx.mock
+async def test_catalog_detail_labels_reaction_formula(
+    client: TestClient,
+    test_settings: Settings,
+    mongo_db: AsyncMongoMockClient,
+    rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+) -> None:
+    _log_in(client, test_settings, rsa_key_pair)
+    await _seed_catalog(mongo_db)
+
+    response = client.get(f"/blueprints/catalog/{REACTION_FORMULA_TYPE_ID}")
+
+    assert response.status_code == 200
+    assert "Methanofullerene Reaction Formula" in response.text
+    assert "Reaction formula" in response.text
+    assert "Produces Fullerene-C50" in response.text
+    assert "Tritanium" in response.text
 
 
 @respx.mock

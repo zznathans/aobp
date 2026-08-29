@@ -16,6 +16,9 @@ BLUEPRINT_ITEM_ID = 1001
 BLUEPRINT_TYPE_ID = 588
 TRITANIUM_TYPE_ID = 34
 STATION_ID = 60003760
+REACTION_ITEM_ID = 1004
+REACTION_TYPE_ID = 989
+REACTION_PRODUCT_TYPE_ID = 990
 
 
 def _log_in(
@@ -207,6 +210,95 @@ async def _seed_sde(mongo_db: AsyncMongoMockClient) -> None:
             "materials": [{"type_id": TRITANIUM_TYPE_ID, "quantity": 10}],
         }
     )
+
+
+def _mock_reaction_formula(settings: Settings) -> None:
+    respx.get(
+        f"{settings.esi_base_url}/characters/{CHARACTER_ID}/blueprints", params={"page": 1}
+    ).mock(
+        return_value=Response(
+            200,
+            headers={"X-Pages": "1"},
+            json=[
+                {
+                    "item_id": REACTION_ITEM_ID,
+                    "type_id": REACTION_TYPE_ID,
+                    "location_id": STATION_ID,
+                    "location_flag": "Hangar",
+                    "quantity": -1,
+                    "runs": -1,
+                    "material_efficiency": 0,
+                    "time_efficiency": 0,
+                }
+            ],
+        )
+    )
+
+
+async def _seed_reaction_sde(mongo_db: AsyncMongoMockClient) -> None:
+    await mongo_db.sde_types.insert_many(
+        [
+            {
+                "_id": REACTION_TYPE_ID,
+                "name": "Methanofullerene Reaction Formula",
+                "group_id": 1,
+                "published": True,
+                "tech_level": None,
+            },
+            {"_id": TRITANIUM_TYPE_ID, "name": "Tritanium", "group_id": 18, "published": True},
+        ]
+    )
+    await mongo_db.sde_blueprints.insert_one(
+        {
+            "_id": REACTION_TYPE_ID,
+            "product_type_id": REACTION_PRODUCT_TYPE_ID,
+            "product_quantity": 100,
+            "manufacturing_time_seconds": 1800,
+            "materials": [{"type_id": TRITANIUM_TYPE_ID, "quantity": 100}],
+            "activity_id": 11,
+        }
+    )
+
+
+@respx.mock
+async def test_list_blueprints_shows_owned_reaction_formula(
+    client: TestClient,
+    test_settings: Settings,
+    mongo_db: AsyncMongoMockClient,
+    rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+) -> None:
+    _log_in(client, test_settings, rsa_key_pair)
+    await _seed_reaction_sde(mongo_db)
+    _mock_reaction_formula(test_settings)
+    _mock_assets(test_settings, on_site=0, elsewhere=0)
+    _mock_station_name(test_settings)
+
+    response = client.get("/blueprints")
+
+    assert response.status_code == 200
+    assert "Methanofullerene Reaction Formula" in response.text
+
+
+@respx.mock
+async def test_blueprint_detail_computes_buildable_counts_for_reaction_formula(
+    client: TestClient,
+    test_settings: Settings,
+    mongo_db: AsyncMongoMockClient,
+    rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+) -> None:
+    _log_in(client, test_settings, rsa_key_pair)
+    await _seed_reaction_sde(mongo_db)
+    _mock_reaction_formula(test_settings)
+    _mock_assets(test_settings, on_site=350, elsewhere=0)
+    _mock_station_name(test_settings)
+
+    response = client.get(f"/blueprints/{REACTION_ITEM_ID}")
+
+    assert response.status_code == 200
+    assert "Methanofullerene Reaction Formula" in response.text
+    # needs 100 Tritanium/run, has 350 on-site -> 3 buildable
+    assert ">3<" in response.text
+    assert "Tritanium" in response.text
 
 
 @respx.mock
