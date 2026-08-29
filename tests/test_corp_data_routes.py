@@ -1,3 +1,4 @@
+from datetime import datetime
 from urllib.parse import parse_qs, urlparse
 
 import respx
@@ -309,3 +310,149 @@ async def test_assets_list_merges_corp_assets(
     assert response.status_code == 200
     assert "Includes corporation assets" in response.text
     assert "250" in response.text
+
+
+@respx.mock
+def test_nav_shows_settings_link_next_to_logout(
+    client: TestClient,
+    test_settings: Settings,
+    rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+) -> None:
+    _log_in(client, test_settings, rsa_key_pair)
+
+    response = client.get("/settings")
+
+    assert response.status_code == 200
+    nav_links_html = response.text[
+        response.text.index('class="nav-links"') : response.text.index('class="nav-user"')
+    ]
+    nav_user_start = response.text.index('class="nav-user"')
+    settings_link_pos = response.text.index('href="/settings"')
+    logout_link_pos = response.text.index('href="/auth/logout"')
+    # The Settings link sits in the nav-user block (right side, with the
+    # avatar/logout), not in the middle nav-links content-section group.
+    assert 'href="/settings"' not in nav_links_html
+    assert nav_user_start < settings_link_pos < logout_link_pos
+
+
+@respx.mock
+def test_settings_shows_account_info(
+    client: TestClient,
+    test_settings: Settings,
+    rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+) -> None:
+    _log_in(client, test_settings, rsa_key_pair)
+
+    response = client.get("/settings")
+
+    assert response.status_code == 200
+    assert "Alt Pilot" in response.text
+    assert f"Character ID {CHARACTER_ID}" in response.text
+    assert "never fetched yet" in response.text
+
+
+@respx.mock
+async def test_settings_shows_populated_data_summary(
+    client: TestClient,
+    test_settings: Settings,
+    mongo_db: AsyncMongoMockClient,
+    rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+) -> None:
+    _log_in(client, test_settings, rsa_key_pair)
+    await mongo_db.assets.insert_one(
+        {
+            "character_id": CHARACTER_ID,
+            "cached_at": datetime(2026, 1, 1, 12, 0),
+            "item_id": 1,
+            "type_id": TRITANIUM_TYPE_ID,
+            "location_id": 60003760,
+            "location_flag": "Hangar",
+            "location_type": "station",
+            "quantity": 100,
+            "is_singleton": False,
+        }
+    )
+
+    response = client.get("/settings")
+
+    assert response.status_code == 200
+    assert "1 items" in response.text
+    assert "2026-01-01 12:00 UTC" in response.text
+
+
+@respx.mock
+async def test_settings_refresh_clears_cached_data(
+    client: TestClient,
+    test_settings: Settings,
+    mongo_db: AsyncMongoMockClient,
+    rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+) -> None:
+    _log_in(client, test_settings, rsa_key_pair)
+    await mongo_db.assets.insert_one(
+        {
+            "character_id": CHARACTER_ID,
+            "cached_at": datetime(2026, 1, 1, 12, 0),
+            "item_id": 1,
+            "type_id": TRITANIUM_TYPE_ID,
+            "location_id": 60003760,
+            "location_flag": "Hangar",
+            "location_type": "station",
+            "quantity": 100,
+            "is_singleton": False,
+        }
+    )
+
+    response = client.get("/settings/refresh", follow_redirects=False)
+
+    assert response.status_code in (302, 307)
+    assert response.headers["location"] == "/settings"
+    assert await mongo_db.assets.count_documents({"character_id": CHARACTER_ID}) == 0
+
+
+@respx.mock
+async def test_settings_clear_data_deletes_character_and_personal_cache_only(
+    client: TestClient,
+    test_settings: Settings,
+    mongo_db: AsyncMongoMockClient,
+    rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+) -> None:
+    _log_in(client, test_settings, rsa_key_pair)
+    _connect_corp(client, test_settings, rsa_key_pair)
+    await mongo_db.assets.insert_one(
+        {
+            "character_id": CHARACTER_ID,
+            "cached_at": datetime(2026, 1, 1, 12, 0),
+            "item_id": 1,
+            "type_id": TRITANIUM_TYPE_ID,
+            "location_id": 60003760,
+            "location_flag": "Hangar",
+            "location_type": "station",
+            "quantity": 100,
+            "is_singleton": False,
+        }
+    )
+    await mongo_db.corp_assets.insert_one(
+        {
+            "corporation_id": CORPORATION_ID,
+            "cached_at": datetime(2026, 1, 1, 12, 0),
+            "item_id": 2,
+            "type_id": TRITANIUM_TYPE_ID,
+            "location_id": 60003760,
+            "location_flag": "Hangar",
+            "location_type": "station",
+            "quantity": 100,
+            "is_singleton": False,
+        }
+    )
+
+    response = client.get("/settings/clear-data", follow_redirects=False)
+
+    assert response.status_code in (302, 307)
+    assert response.headers["location"] == "/"
+    assert await mongo_db.characters.find_one({"_id": CHARACTER_ID}) is None
+    assert await mongo_db.assets.count_documents({"character_id": CHARACTER_ID}) == 0
+    # Corp-shared cache belongs to the whole corp, not just this character - untouched.
+    assert await mongo_db.corp_assets.count_documents({"corporation_id": CORPORATION_ID}) == 1
+
+    me_response = client.get("/auth/me")
+    assert me_response.status_code == 401

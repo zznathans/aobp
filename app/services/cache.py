@@ -39,3 +39,13 @@ async def set_many_cached(redis: Redis | None, items: dict[str, Any], ttl_second
         await pipeline.execute()
     except RedisError:
         CACHE_ERRORS.inc()
+
+
+async def delete_cached(redis: Redis | None, keys: list[str]) -> None:
+    if redis is None or not keys:
+        return
+
+    try:
+        await redis.delete(*keys)
+    except RedisError:
+        CACHE_ERRORS.inc()
