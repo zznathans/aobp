@@ -36,9 +36,12 @@ async def _corp_list_or_none(
     entry_type: type[T],
     fetch: Callable[[], Awaitable[list[T]]],
 ) -> list[T] | None:
-    """None means "403 - this character doesn't have the corp role this endpoint
-    requires" (e.g. Director for assets/blueprints). [] means the fetch succeeded
-    and the corp just doesn't own anything of that kind."""
+    """None means this character can't use this endpoint right now - either a 403
+    (valid token, but missing the corp role the endpoint requires, e.g. Director
+    for assets/blueprints) or a 401 (the corp token doesn't actually carry the
+    scope this endpoint needs, e.g. EVE_SSO_CORP_SCOPES was misconfigured when the
+    character connected). [] means the fetch succeeded and the corp just doesn't
+    own anything of that kind."""
     try:
         return await esi_cache.cached_corporation_list(
             db,
@@ -51,7 +54,7 @@ async def _corp_list_or_none(
             fetch=fetch,
         )
     except httpx.HTTPStatusError as error:
-        if error.response.status_code == 403:
+        if error.response.status_code in (401, 403):
             return None
         raise
 
