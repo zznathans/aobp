@@ -200,3 +200,29 @@ async def test_planetary_detail_404_for_unknown_schematic(
     response = client.get("/planetary/999999")
 
     assert response.status_code == 404
+
+
+async def test_planetary_list_works_without_logging_in(
+    client: TestClient,
+    mongo_db: AsyncMongoMockClient,
+) -> None:
+    await _seed_schematics(mongo_db)
+
+    response = client.get("/planetary")
+
+    assert response.status_code == 200
+    assert "Superconductors" in response.text
+    assert "Log in with EVE Online" in response.text
+
+
+async def test_planetary_detail_works_without_logging_in(
+    client: TestClient,
+    mongo_db: AsyncMongoMockClient,
+) -> None:
+    await _seed_schematics(mongo_db)
+
+    response = client.get(f"/planetary/{SUPERCONDUCTOR_SCHEMATIC_ID}")
+
+    assert response.status_code == 200
+    assert "Superconductors" in response.text
+    assert "Log in with EVE Online" in response.text
