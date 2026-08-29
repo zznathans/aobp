@@ -234,6 +234,40 @@ def test_settings_shows_per_source_permission_status(
 
 
 @respx.mock
+def test_settings_treats_401_as_no_permission_rather_than_crashing(
+    client: TestClient,
+    test_settings: Settings,
+    mongo_db: AsyncMongoMockClient,
+    rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+) -> None:
+    # A corp token missing the scope an endpoint needs (e.g. EVE_SSO_CORP_SCOPES
+    # was misconfigured when the character connected) gets a 401 from ESI, not a
+    # 403 - the app should still degrade to "no permission" rather than 500.
+    _log_in(client, test_settings, rsa_key_pair)
+    _connect_corp(client, test_settings, rsa_key_pair)
+
+    respx.get(f"{test_settings.esi_base_url}/corporations/{CORPORATION_ID}/").mock(
+        return_value=Response(200, json={"name": "Test Corp"})
+    )
+    respx.get(
+        f"{test_settings.esi_base_url}/corporations/{CORPORATION_ID}/assets", params={"page": 1}
+    ).mock(return_value=Response(401, json={"error": "token is not valid for this endpoint"}))
+    respx.get(
+        f"{test_settings.esi_base_url}/corporations/{CORPORATION_ID}/blueprints",
+        params={"page": 1},
+    ).mock(return_value=Response(401, json={"error": "token is not valid for this endpoint"}))
+    respx.get(
+        f"{test_settings.esi_base_url}/corporations/{CORPORATION_ID}/industry/jobs",
+        params={"page": 1},
+    ).mock(return_value=Response(401, json={"error": "token is not valid for this endpoint"}))
+
+    response = client.get("/settings")
+
+    assert response.status_code == 200
+    assert response.text.count("No permission &mdash;") == 3
+
+
+@respx.mock
 async def test_assets_list_merges_corp_assets(
     client: TestClient,
     test_settings: Settings,
