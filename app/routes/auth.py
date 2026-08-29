@@ -34,6 +34,21 @@ async def callback(
     db: AsyncIOMotorDatabase = Depends(get_database),
     settings: Settings = Depends(get_settings),
 ) -> RedirectResponse:
+    # Both the base login (/auth/login) and "connect corporation data"
+    # (/auth/connect-corp) redirect through this same route, because EVE SSO
+    # requires the redirect_uri sent in the authorize request to exactly match
+    # what's registered on the application - rather than needing a second
+    # registered callback URL, the two flows share this one and are told apart
+    # by which pending state (pkce_state vs corp_pkce_state) the incoming state
+    # param matches.
+    if state == request.session.get("corp_pkce_state"):
+        return await _complete_corp_connection(request, code, db, settings)
+    return await _complete_login(request, code, state, db, settings)
+
+
+async def _complete_login(
+    request: Request, code: str, state: str, db: AsyncIOMotorDatabase, settings: Settings
+) -> RedirectResponse:
     expected_state = request.session.get("pkce_state")
     code_verifier = request.session.get("pkce_verifier")
     if not expected_state or not code_verifier or state != expected_state:
@@ -70,6 +85,45 @@ async def callback(
     return RedirectResponse("/")
 
 
+async def _complete_corp_connection(
+    request: Request, code: str, db: AsyncIOMotorDatabase, settings: Settings
+) -> RedirectResponse:
+    code_verifier = request.session.get("corp_pkce_verifier")
+    character_id = request.session.get("character_id")
+    if not code_verifier or character_id is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid or missing OAuth state")
+
+    token = await eve_sso.exchange_code_for_token(settings, code=code, code_verifier=code_verifier)
+    claims = await eve_sso.validate_access_token(settings, token.access_token)
+    if claims.character_id != character_id:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Corporation data must be connected as the same character you're logged in as",
+        )
+
+    corporation_id = await esi.get_character_public_info(settings, claims.character_id)
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    await db.characters.update_one(
+        {"_id": claims.character_id},
+        {
+            "$set": {
+                "corporation_id": corporation_id,
+                "corp_scopes": claims.scopes,
+                "corp_access_token": token.access_token,
+                "corp_refresh_token": token.refresh_token,
+                "corp_access_token_expires_at": now + timedelta(seconds=token.expires_in),
+                "updated_at": now,
+            }
+        },
+    )
+
+    del request.session["corp_pkce_verifier"]
+    del request.session["corp_pkce_state"]
+
+    return RedirectResponse("/settings")
+
+
 @router.get("/logout")
 def logout(request: Request) -> RedirectResponse:
     request.session.clear()
@@ -94,51 +148,6 @@ def connect_corp(
         scope=settings.eve_sso_corp_scopes,
     )
     return RedirectResponse(authorize_url)
-
-
-@router.get("/connect-corp/callback")
-async def connect_corp_callback(
-    request: Request,
-    code: str,
-    state: str,
-    character: CharacterDocument = Depends(get_current_character),
-    db: AsyncIOMotorDatabase = Depends(get_database),
-    settings: Settings = Depends(get_settings),
-) -> RedirectResponse:
-    expected_state = request.session.get("corp_pkce_state")
-    code_verifier = request.session.get("corp_pkce_verifier")
-    if not expected_state or not code_verifier or state != expected_state:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid or missing OAuth state")
-
-    token = await eve_sso.exchange_code_for_token(settings, code=code, code_verifier=code_verifier)
-    claims = await eve_sso.validate_access_token(settings, token.access_token)
-    if claims.character_id != character.character_id:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            "Corporation data must be connected as the same character you're logged in as",
-        )
-
-    corporation_id = await esi.get_character_public_info(settings, claims.character_id)
-
-    now = datetime.now(UTC).replace(tzinfo=None)
-    await db.characters.update_one(
-        {"_id": character.character_id},
-        {
-            "$set": {
-                "corporation_id": corporation_id,
-                "corp_scopes": claims.scopes,
-                "corp_access_token": token.access_token,
-                "corp_refresh_token": token.refresh_token,
-                "corp_access_token_expires_at": now + timedelta(seconds=token.expires_in),
-                "updated_at": now,
-            }
-        },
-    )
-
-    del request.session["corp_pkce_verifier"]
-    del request.session["corp_pkce_state"]
-
-    return RedirectResponse("/settings")
 
 
 @router.get("/disconnect-corp")
