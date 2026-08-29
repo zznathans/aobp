@@ -345,6 +345,7 @@ tests:
       eveBuild.eveSso.clientId: my-client-id
       eveBuild.eveSso.callbackUrl: https://example.com/callback
       eveBuild.eveSso.scopes: "esi-assets.read_assets.v1"
+      eveBuild.eveSso.corpScopes: "esi-assets.read_corporation_assets.v1"
       eveBuild.esi.userAgent: my-app
     asserts:
       - contains:
@@ -362,6 +363,11 @@ tests:
           content:
             name: EVE_SSO_SCOPES
             value: "esi-assets.read_assets.v1"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: EVE_SSO_CORP_SCOPES
+            value: "esi-assets.read_corporation_assets.v1"
       - contains:
           path: spec.template.spec.containers[0].env
           content:
