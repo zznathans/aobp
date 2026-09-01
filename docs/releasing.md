@@ -18,6 +18,18 @@ with a [Conventional Commits](https://www.conventionalcommits.org/) message
      `eve-build-chart`, not `eve-build`, so it doesn't collide with the Docker
      image's own tags at `ghcr.io/zznathans/eve-build`) —
      `helm install eve-build oci://ghcr.io/zznathans/eve-build-chart --version X.Y.Z`.
+   - `release.yml` itself also packages the chart a second time and publishes
+     it as a traditional Helm chart repo (`index.yaml` + `.tgz`) to the
+     `gh-pages` branch, via `@semantic-release/exec` (packages the chart and
+     merges it into the existing `index.yaml`) and
+     `@qiwi/semantic-release-gh-pages-plugin` (pushes the result) — both
+     configured in `.releaserc.json`, running as part of the semantic-release
+     pipeline itself rather than a separate downstream workflow, since that's
+     how these plugins work. This is an additional install method alongside
+     the OCI one above, not a replacement — see [Deploying](deploying.md).
+     GitHub Pages needs to be enabled once (Settings → Pages → Deploy from a
+     branch → `gh-pages` / `(root)`) after the first release creates that
+     branch.
 
 `Chart.yaml`'s committed `version`/`appVersion` only matter for local
 `helm lint`/`helm unittest` — they're not what gets published. `eveBuild.imageTag`
