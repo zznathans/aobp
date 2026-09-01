@@ -27,67 +27,8 @@ from app.web import (
 
 router = APIRouter(prefix="/blueprints", tags=["blueprints"])
 
-_LIST_STYLE = """
-  .page { max-width: 70rem; margin: 0 auto; padding: 2rem 1.5rem; }
-  h1 { font-size: 1.4rem; margin: 0 0 1.5rem; }
-  h2 { font-size: 1.05rem; margin: 1.5rem 0 0.75rem; }
-  h2:first-of-type { margin-top: 0; }
-  .catalog-link { margin-bottom: 1.25rem; }
-  .filters {
-    display: flex; gap: 1.25rem; align-items: center;
-    margin-bottom: 1.25rem; font-size: 0.85rem; color: #9aa4b2;
-  }
-  .filters label { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; }
-  .filters select {
-    margin-left: auto; background: #1a1d24; color: #e6e6e6;
-    border: 1px solid #2a2e37; border-radius: 6px; padding: 0.35rem 0.5rem;
-    font-size: 0.85rem;
-  }
-  .filters input[type="text"] {
-    background: #1a1d24; color: #e6e6e6;
-    border: 1px solid #2a2e37; border-radius: 6px; padding: 0.35rem 0.5rem;
-    font-size: 0.85rem; width: 14rem;
-  }
-  .bp-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-  .bp-table th, .bp-table td {
-    padding: 0.5rem 0.75rem; border-bottom: 1px solid #2a2e37; text-align: left;
-    vertical-align: middle;
-  }
-  .bp-table th {
-    color: #9aa4b2; font-weight: 600; font-size: 0.7rem;
-    text-transform: uppercase; letter-spacing: 0.03em;
-  }
-  .bp-table th a { color: inherit; text-decoration: none; white-space: nowrap; }
-  .bp-table th a:hover { color: #e6e6e6; }
-  .bp-table tr:hover td { background: #1a1d24; }
-  .bp-link {
-    display: flex; align-items: center; gap: 0.6rem;
-    text-decoration: none; color: inherit;
-  }
-  .bp-link .icon { width: 32px; height: 32px; border-radius: 4px; flex-shrink: 0; }
-  .bp-link .name { font-weight: 600; }
-  .bp-link .sub { color: #9aa4b2; font-size: 0.75rem; margin-top: 0.1rem; }
-  .empty { color: #9aa4b2; }
-"""
-
-_DETAIL_STYLE = """
-  .page { max-width: 40rem; margin: 0 auto; padding: 2rem 1.5rem; }
-  .header { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; }
-  .header .icon { width: 64px; height: 64px; border-radius: 8px; }
-  .header .name { font-size: 1.3rem; font-weight: 600; }
-  .header .meta { color: #9aa4b2; font-size: 0.85rem; margin-top: 0.25rem; }
-  .summary {
-    display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; margin-bottom: 1.5rem;
-    background: #1a1d24; border: 1px solid #2a2e37; border-radius: 10px; padding: 1rem;
-  }
-  .summary .figure { font-size: 1.4rem; font-weight: 700; }
-  .summary .label { color: #9aa4b2; font-size: 0.8rem; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-  th, td { text-align: right; padding: 0.5rem; border-bottom: 1px solid #2a2e37; }
-  th:first-child, td:first-child { text-align: left; }
-  .short { color: #f0625a; }
-  .back { display: inline-block; margin-top: 1.5rem; }
-"""
+_LIST_STYLE = "/static/blueprints-list.css"
+_DETAIL_STYLE = "/static/blueprints-detail.css"
 
 
 _REACTIONS_ACTIVITY_ID = 11

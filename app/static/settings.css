@@ -1,0 +1,23 @@
+.page { max-width: 40rem; margin: 0 auto; padding: 2rem 1.5rem; }
+h1 { font-size: 1.4rem; margin: 0 0 1.5rem; }
+h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
+.card {
+  background: #1a1d24; border: 1px solid #2a2e37; border-radius: 10px; padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+.card p { color: #9aa4b2; font-size: 0.9rem; margin: 0 0 1rem; }
+.card.danger { border-color: #f0625a33; }
+.card.danger h2 { color: #f0625a; }
+.kv-list, .status-list { margin: 0; padding: 0; list-style: none; }
+.kv-list li, .status-list li {
+  display: flex; justify-content: space-between; gap: 1rem; padding: 0.5rem 0;
+  border-bottom: 1px solid #2a2e37; font-size: 0.9rem;
+}
+.kv-list li:last-child, .status-list li:last-child { border-bottom: none; }
+.kv-list dt, .status-list span:first-child { color: #9aa4b2; }
+.kv-list dd { margin: 0; text-align: right; }
+.scopes { font-size: 0.8rem; color: #9aa4b2; word-break: break-word; text-align: right; }
+.status-ok { color: #3ddc84; }
+.status-missing { color: #f0625a; }
+.status-shared { font-size: 0.75rem; color: #9aa4b2; }
+.actions { margin-top: 1.25rem; display: flex; gap: 0.75rem; }

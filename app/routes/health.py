@@ -23,60 +23,8 @@ from app.web import (
 
 router = APIRouter()
 
-_LOGIN_STYLE = """
-  body { display: flex; flex-direction: column; min-height: 100vh; }
-  .login-wrap {
-    flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem 1.5rem;
-  }
-  .card {
-    background: #1a1d24;
-    border: 1px solid #2a2e37;
-    border-radius: 12px;
-    padding: 2rem 2.5rem;
-    width: 26rem;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  }
-  h1 { font-size: 1.25rem; margin: 0 0 0.75rem; font-weight: 600; text-align: center; }
-  .tagline { color: #9aa4b2; font-size: 0.9rem; line-height: 1.5; margin: 0 0 1.25rem; }
-  .feature-list {
-    color: #9aa4b2; font-size: 0.85rem; line-height: 1.6;
-    margin: 0 0 1.5rem; padding-left: 1.1rem;
-  }
-  .feature-list li { margin-bottom: 0.35rem; }
-  .card .btn { width: 100%; }
-"""
-
-_DASHBOARD_STYLE = """
-  .page { max-width: 70rem; margin: 0 auto; padding: 2rem 1.5rem; }
-  h1 { font-size: 1.4rem; margin: 0 0 1.5rem; }
-  .stat-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-    gap: 1rem;
-    margin-bottom: 2rem;
-  }
-  .stat-card {
-    background: #1a1d24;
-    border: 1px solid #2a2e37;
-    border-radius: 10px;
-    padding: 1.25rem;
-  }
-  .stat-card .figure { font-size: 2rem; font-weight: 700; }
-  .stat-card .label { color: #9aa4b2; font-size: 0.85rem; margin-top: 0.25rem; }
-  .stat-card a { text-decoration: none; color: inherit; }
-  h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-bottom: 2rem; }
-  th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #2a2e37; }
-  th { color: #9aa4b2; font-weight: 600; font-size: 0.7rem; text-transform: uppercase; }
-  .empty { color: #9aa4b2; }
-  .job-bp {
-    display: flex; align-items: center; gap: 0.5rem;
-    text-decoration: none; color: inherit;
-  }
-  .job-bp:hover span { color: #4c8bf5; }
-  .job-bp .icon { width: 24px; height: 24px; border-radius: 4px; flex-shrink: 0; }
-  table tr:hover td { background: #1a1d24; }
-"""
+_LOGIN_STYLE = "/static/health-login.css"
+_DASHBOARD_STYLE = "/static/health-dashboard.css"
 
 
 def _render_login() -> str:

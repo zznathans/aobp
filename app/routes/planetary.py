@@ -17,54 +17,8 @@ from app.web import format_isk, item_icon_url, render_page
 
 router = APIRouter(prefix="/planetary", tags=["planetary"])
 
-_LIST_STYLE = """
-  .page { max-width: 70rem; margin: 0 auto; padding: 2rem 1.5rem; }
-  h1 { font-size: 1.4rem; margin: 0 0 1.5rem; }
-  h2 { font-size: 1.05rem; margin: 1.5rem 0 0.75rem; }
-  h2:first-of-type { margin-top: 0; }
-  .pi-filters {
-    display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: center;
-    margin-bottom: 1.5rem; font-size: 0.85rem; color: #9aa4b2;
-  }
-  .pi-filters label { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; }
-  .pi-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-  .pi-table-narrow { width: auto; min-width: 22rem; }
-  .pi-table th, .pi-table td {
-    padding: 0.5rem 0.75rem; border-bottom: 1px solid #2a2e37; text-align: left;
-    vertical-align: middle;
-  }
-  .pi-table th {
-    color: #9aa4b2; font-weight: 600; font-size: 0.7rem;
-    text-transform: uppercase; letter-spacing: 0.03em;
-  }
-  .pi-table td.num { text-align: right; }
-  .pi-table tr:hover td { background: #1a1d24; }
-  .pi-link {
-    display: flex; align-items: center; gap: 0.6rem;
-    text-decoration: none; color: inherit;
-  }
-  .pi-link .icon { width: 32px; height: 32px; border-radius: 4px; flex-shrink: 0; }
-  .pi-link .name { font-weight: 600; }
-  .pi-inputs { color: #9aa4b2; font-size: 0.8rem; }
-  .empty { color: #9aa4b2; }
-"""
-
-_DETAIL_STYLE = """
-  .page { max-width: 40rem; margin: 0 auto; padding: 2rem 1.5rem; }
-  .header { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; }
-  .header .icon { width: 64px; height: 64px; border-radius: 8px; }
-  .header .name { font-size: 1.3rem; font-weight: 600; }
-  .header .meta { color: #9aa4b2; font-size: 0.85rem; margin-top: 0.25rem; }
-  h2 { font-size: 1rem; margin: 2rem 0 0.75rem; }
-  h2:first-of-type { margin-top: 1.5rem; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-  th, td { text-align: right; padding: 0.5rem; border-bottom: 1px solid #2a2e37; }
-  th:first-child, td:first-child { text-align: left; }
-  .material-cell { display: flex; align-items: center; gap: 0.5rem; }
-  .material-cell .icon { width: 24px; height: 24px; border-radius: 4px; flex-shrink: 0; }
-  .back { display: inline-block; margin-top: 1.5rem; }
-  .empty { color: #9aa4b2; }
-"""
+_LIST_STYLE = "/static/planetary-list.css"
+_DETAIL_STYLE = "/static/planetary-detail.css"
 
 _TIER_LABELS: dict[int, str] = {
     1042: "Tier 1 - Basic Commodities",

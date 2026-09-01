@@ -4,84 +4,7 @@ from html import escape
 from app.models.character import CharacterDocument
 from app.services.locations import LocationInfo
 
-BASE_STYLE = """
-  :root { color-scheme: dark; }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    min-height: 100vh;
-    background: #0f1115;
-    color: #e6e6e6;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  }
-  a { color: inherit; }
-  .btn {
-    display: inline-block;
-    padding: 0.6rem 1rem;
-    border-radius: 8px;
-    border: none;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-    text-decoration: none;
-    box-sizing: border-box;
-  }
-  .btn-primary { background: #4c8bf5; color: #fff; }
-  .btn-primary:hover { background: #3b76e0; }
-  .btn-secondary { background: transparent; color: #9aa4b2; border: 1px solid #2a2e37; }
-  .btn-secondary:hover { color: #e6e6e6; border-color: #4c8bf5; }
-  .navbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.75rem 1.5rem;
-    background: #14161c;
-    border-bottom: 1px solid #2a2e37;
-  }
-  .navbar .brand {
-    font-weight: 700;
-    font-size: 1.05rem;
-    text-decoration: none;
-    flex-shrink: 0;
-  }
-  .navbar .nav-links {
-    display: flex;
-    gap: 1.25rem;
-    flex: 1;
-    font-size: 0.9rem;
-  }
-  .navbar .nav-links a {
-    text-decoration: none;
-    color: #9aa4b2;
-  }
-  .navbar .nav-links a:hover,
-  .navbar .nav-links a.active {
-    color: #e6e6e6;
-  }
-  .navbar .nav-user {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    flex-shrink: 0;
-  }
-  .navbar .nav-avatar {
-    width: 2rem;
-    height: 2rem;
-    border-radius: 50%;
-  }
-  .navbar .nav-user-name {
-    font-size: 0.85rem;
-    white-space: nowrap;
-  }
-  .mini-gauge { display: flex; align-items: center; gap: 0.5rem; min-width: 7rem; }
-  .mini-gauge-track {
-    flex: 1; height: 5px; border-radius: 3px;
-    background: #2a2e37; overflow: hidden;
-  }
-  .mini-gauge-fill { height: 100%; border-radius: 3px; }
-  .mini-gauge-text { font-size: 0.75rem; color: #9aa4b2; min-width: 2.6rem; text-align: right; }
-"""
+BASE_STYLESHEET = "/static/base.css"
 
 
 def gauge_color(percentage: float) -> str:
@@ -243,11 +166,15 @@ def render_nav(character: CharacterDocument | None) -> str:
 def render_page(
     title: str,
     body: str,
-    extra_style: str = "",
+    extra_stylesheet: str | list[str] = "",
     *,
     character: CharacterDocument | None = None,
 ) -> str:
     nav = render_nav(character)
+    stylesheets = [extra_stylesheet] if isinstance(extra_stylesheet, str) else extra_stylesheet
+    stylesheet_links = "\n  ".join(
+        f'<link rel="stylesheet" href="{href}">' for href in [BASE_STYLESHEET, *stylesheets] if href
+    )
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -255,7 +182,7 @@ def render_page(
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{escape(title)}</title>
   <link rel="icon" href="{FAVICON_URL}">
-  <style>{BASE_STYLE}{extra_style}</style>
+  {stylesheet_links}
 </head>
 <body>
 {nav}

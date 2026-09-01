@@ -1,0 +1,29 @@
+.page { max-width: 70rem; margin: 0 auto; padding: 2rem 1.5rem; }
+h1 { font-size: 1.4rem; margin: 0 0 1.5rem; }
+h2 { font-size: 1.05rem; margin: 1.5rem 0 0.75rem; }
+h2:first-of-type { margin-top: 0; }
+.pi-filters {
+  display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: center;
+  margin-bottom: 1.5rem; font-size: 0.85rem; color: #9aa4b2;
+}
+.pi-filters label { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; }
+.pi-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.pi-table-narrow { width: auto; min-width: 22rem; }
+.pi-table th, .pi-table td {
+  padding: 0.5rem 0.75rem; border-bottom: 1px solid #2a2e37; text-align: left;
+  vertical-align: middle;
+}
+.pi-table th {
+  color: #9aa4b2; font-weight: 600; font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+.pi-table td.num { text-align: right; }
+.pi-table tr:hover td { background: #1a1d24; }
+.pi-link {
+  display: flex; align-items: center; gap: 0.6rem;
+  text-decoration: none; color: inherit;
+}
+.pi-link .icon { width: 32px; height: 32px; border-radius: 4px; flex-shrink: 0; }
+.pi-link .name { font-weight: 600; }
+.pi-inputs { color: #9aa4b2; font-size: 0.8rem; }
+.empty { color: #9aa4b2; }
