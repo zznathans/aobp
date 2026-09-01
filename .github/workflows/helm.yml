@@ -1,11 +1,7 @@
 name: Helm
 
 on:
-  push:
-    branches: [main]
-    paths: ["charts/**"]
   pull_request:
-    paths: ["charts/**"]
 
 concurrency:
   group: helm-${{ github.workflow }}-${{ github.ref }}

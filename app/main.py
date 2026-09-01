@@ -12,7 +12,17 @@ from app.core.config import get_settings
 from app.db.mongo import create_mongo_client
 from app.db.redis import create_redis_client
 from app.migrations.runner import run_migrations
-from app.routes import assets, auth, blueprints, health, jobs, market_prices, planetary, settings
+from app.routes import (
+    assets,
+    auth,
+    blueprints,
+    health,
+    jobs,
+    market_prices,
+    pi,
+    planetary,
+    settings,
+)
 from app.services.db_gauges import refresh_db_gauges_periodically
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -90,5 +100,6 @@ app.include_router(assets.router)
 app.include_router(blueprints.router)
 app.include_router(jobs.router)
 app.include_router(market_prices.router)
+app.include_router(pi.router)
 app.include_router(planetary.router)
 app.include_router(settings.router)

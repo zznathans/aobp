@@ -16,9 +16,18 @@ Login uses [EVE Online SSO's Authorization Code + PKCE flow](https://developers.
 The dashboard and blueprint library need `esi-characters.read_blueprints.v1`,
 `esi-assets.read_assets.v1`, `esi-industry.read_character_jobs.v1`, and
 `esi-universe.read_structures.v1` (resolves player-structure location names —
-without it those fall back to a raw `Location {id}` label) in `EVE_SSO_SCOPES`
-— all four must also be enabled on the application itself at
+without it those fall back to a raw `Location {id}` label) in `EVE_SSO_SCOPES`.
+The PI Setups page (`/pi`) additionally needs `esi-planets.manage_planets.v1` —
+this is ESI's only PI scope; despite the name it only grants read access to
+`/characters/{id}/planets/*`, there's no narrower read-only variant. All five
+scopes must also be enabled on the application itself at
 developers.eveonline.com, or EVE SSO rejects the login with `invalid_scope`.
+
+Because EVE SSO refresh tokens carry the scope set they were originally issued
+with, a character that logged in before `esi-planets.manage_planets.v1` was
+added won't have it until they log out (`/auth/logout`) and log back in
+(`/auth/login`) for a fresh consent grant. `/pi` detects a missing scope and
+shows a message prompting for this instead of failing.
 
 ## Corporation data (optional)
 
