@@ -211,7 +211,13 @@ async def show_settings(
       {corp_section}
       {_render_danger_section()}
     </div>"""
-    return HTMLResponse(render_page("Settings", body, _STYLE, character=character))
+    safe_character = character.model_copy(
+        update={
+            "character_name": escape(character.character_name),
+            "scopes": [escape(scope) for scope in character.scopes],
+        }
+    )
+    return HTMLResponse(render_page("Settings", body, _STYLE, character=safe_character))
 
 
 @router.get("/refresh")
