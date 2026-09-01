@@ -1,0 +1,14 @@
+.page { max-width: 80%; margin: 0 auto; padding: 2rem 1.5rem; }
+h1 { font-size: 1.4rem; margin: 0 0 1.5rem; }
+.scope-notice {
+  background: #1a1d24; border: 1px solid #2a2e37; border-radius: 10px;
+  padding: 1rem 1.25rem; color: #9aa4b2;
+}
+.planet-grid { grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+.planet-grid .item-card { padding: 1.5rem 1.75rem; font-size: 0.95rem; }
+.planet-grid .item-card .item-title { font-size: 1.1rem; margin-bottom: 0.15rem; }
+.planet-grid .item-card-content { gap: 0.6rem; }
+.item-card-empty {
+  border-style: dashed; display: flex; align-items: center; justify-content: center;
+  min-height: 12rem; color: #9aa4b2; font-size: 0.85rem;
+}

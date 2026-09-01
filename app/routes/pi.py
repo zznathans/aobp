@@ -24,95 +24,9 @@ _PI_SCOPE = "esi-planets.manage_planets.v1"
 # reserves this many grid cells, filling unused ones with an empty placeholder.
 _MAX_COLONY_SLOTS = 6
 
-_CARD_STYLE = """
-  .status-extracting { color: #3ddc84; }
-  .status-idle { color: #9aa4b2; }
-  .item-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 16rem));
-    gap: 0.75rem;
-  }
-  .item-card {
-    background: #14161c; border: 1px solid #2a2e37; border-radius: 8px;
-    padding: 0.85rem 1rem; font-size: 0.85rem;
-    position: relative; overflow: hidden;
-    display: block; text-decoration: none; color: inherit;
-  }
-  a.item-card:hover { border-color: #4c8bf5; }
-  .item-card-bg {
-    position: absolute; top: 50%; right: -0.5rem; transform: translateY(-50%);
-    width: 72px; height: 72px; opacity: 0.14; pointer-events: none;
-  }
-  .item-card-content {
-    position: relative; z-index: 1; display: flex; flex-direction: column; gap: 0.45rem;
-  }
-  .item-card .item-title { font-weight: 600; }
-  .item-card .item-line {
-    color: #9aa4b2; font-size: 0.78rem; display: flex; justify-content: space-between;
-    gap: 0.5rem;
-  }
-  .item-card .item-line .item-value { color: #e6e6e6; text-align: right; }
-  .item-card .item-block { display: flex; flex-direction: column; gap: 0.25rem; }
-  .item-card .item-subhead {
-    color: #9aa4b2; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em;
-  }
-  .mini-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
-  .mini-table td { padding: 0.15rem 0; line-height: 1.2; color: #9aa4b2; }
-  .mini-table td:last-child { text-align: right; color: #e6e6e6; white-space: nowrap; }
-  .produces-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-  .produces-icon { width: 28px; height: 28px; border-radius: 4px; }
-"""
-
-_LIST_STYLE = _CARD_STYLE + """
-  .page { max-width: 80%; margin: 0 auto; padding: 2rem 1.5rem; }
-  h1 { font-size: 1.4rem; margin: 0 0 1.5rem; }
-  .scope-notice {
-    background: #1a1d24; border: 1px solid #2a2e37; border-radius: 10px;
-    padding: 1rem 1.25rem; color: #9aa4b2;
-  }
-  .planet-grid { grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
-  .planet-grid .item-card { padding: 1.5rem 1.75rem; font-size: 0.95rem; }
-  .planet-grid .item-card .item-title { font-size: 1.1rem; margin-bottom: 0.15rem; }
-  .planet-grid .item-card-content { gap: 0.6rem; }
-  .item-card-empty {
-    border-style: dashed; display: flex; align-items: center; justify-content: center;
-    min-height: 12rem; color: #9aa4b2; font-size: 0.85rem;
-  }
-"""
-
-_DETAIL_STYLE = _CARD_STYLE + """
-  .page { max-width: 80%; margin: 0 auto; padding: 2rem 1.5rem; }
-  .header { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; }
-  .header .name { font-size: 1.3rem; font-weight: 600; }
-  .header .meta { color: #9aa4b2; font-size: 0.85rem; margin-top: 0.25rem; }
-  h2 { font-size: 1rem; margin: 0 0 0.75rem; }
-  .back { display: inline-block; margin-top: 1.5rem; }
-  .summary {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
-    gap: 0.75rem; margin-bottom: 1.5rem;
-  }
-  .summary-stat {
-    background: #1a1d24; border: 1px solid #2a2e37; border-radius: 10px; padding: 0.75rem 1rem;
-  }
-  .summary-stat .value { font-size: 1.2rem; font-weight: 600; }
-  .summary-stat .label {
-    color: #9aa4b2; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em;
-  }
-  .summary-stat-icon { display: flex; align-items: center; gap: 0.6rem; }
-  .summary-stat-icon .icon { width: 32px; height: 32px; border-radius: 4px; flex-shrink: 0; }
-  .flow-caret { font-size: 0.8rem; flex-shrink: 0; line-height: 1; }
-  .flow-caret-in { color: #f0625a; }
-  .flow-caret-out { color: #3ddc84; }
-  .section-grid { display: flex; flex-direction: column; gap: 1rem; }
-  .section-box {
-    background: #1a1d24; border: 1px solid #2a2e37; border-radius: 10px;
-    padding: 1rem; overflow-x: auto;
-  }
-  .facility-group + .facility-group { margin-top: 1rem; }
-  .facility-group h3 {
-    font-size: 0.75rem; margin: 0 0 0.5rem; color: #9aa4b2;
-    text-transform: uppercase; letter-spacing: 0.03em;
-  }
-"""
+_CARD_STYLESHEET = "/static/pi-card.css"
+_LIST_STYLE = [_CARD_STYLESHEET, "/static/pi-list.css"]
+_DETAIL_STYLE = [_CARD_STYLESHEET, "/static/pi-detail.css"]
 
 # Keyed by type_id rather than name - immune to any casing/locale differences in the
 # resolved SDE type name, unlike matching on the display string.

@@ -15,18 +15,7 @@ from app.web import gauge_cell_html, icon_url, location_label_html, render_page
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
-_DETAIL_STYLE = """
-  .page { max-width: 36rem; margin: 0 auto; padding: 2rem 1.5rem; }
-  .header { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; }
-  .header .icon { width: 64px; height: 64px; border-radius: 8px; }
-  .header .name { font-size: 1.3rem; font-weight: 600; }
-  .header .meta { color: #9aa4b2; font-size: 0.85rem; margin-top: 0.25rem; }
-  .facts { background: #1a1d24; border: 1px solid #2a2e37; border-radius: 10px; padding: 1rem; }
-  .facts dl { margin: 0; display: grid; grid-template-columns: 10rem 1fr; row-gap: 0.75rem; }
-  .facts dt { color: #9aa4b2; font-size: 0.8rem; }
-  .facts dd { margin: 0; }
-  .actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
-"""
+_DETAIL_STYLE = "/static/jobs-detail.css"
 
 
 @router.get("/{job_id}", response_class=HTMLResponse)

@@ -1,0 +1,14 @@
+.page { max-width: 40rem; margin: 0 auto; padding: 2rem 1.5rem; }
+.header { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; }
+.header .icon { width: 64px; height: 64px; border-radius: 8px; }
+.header .name { font-size: 1.3rem; font-weight: 600; }
+.header .meta { color: #9aa4b2; font-size: 0.85rem; margin-top: 0.25rem; }
+h2 { font-size: 1rem; margin: 2rem 0 0.75rem; }
+h2:first-of-type { margin-top: 1.5rem; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th, td { text-align: right; padding: 0.5rem; border-bottom: 1px solid #2a2e37; }
+th:first-child, td:first-child { text-align: left; }
+.material-cell { display: flex; align-items: center; gap: 0.5rem; }
+.material-cell .icon { width: 24px; height: 24px; border-radius: 4px; flex-shrink: 0; }
+.back { display: inline-block; margin-top: 1.5rem; }
+.empty { color: #9aa4b2; }

@@ -3,8 +3,10 @@ import contextlib
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from prometheus_fastapi_instrumentator import Instrumentator
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -82,6 +84,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="eve-build", lifespan=lifespan)
+
+app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 
 _settings = get_settings()
 app.add_middleware(

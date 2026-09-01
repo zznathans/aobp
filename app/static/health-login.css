@@ -1,0 +1,20 @@
+body { display: flex; flex-direction: column; min-height: 100vh; }
+.login-wrap {
+  flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem 1.5rem;
+}
+.card {
+  background: #1a1d24;
+  border: 1px solid #2a2e37;
+  border-radius: 12px;
+  padding: 2rem 2.5rem;
+  width: 26rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+h1 { font-size: 1.25rem; margin: 0 0 0.75rem; font-weight: 600; text-align: center; }
+.tagline { color: #9aa4b2; font-size: 0.9rem; line-height: 1.5; margin: 0 0 1.25rem; }
+.feature-list {
+  color: #9aa4b2; font-size: 0.85rem; line-height: 1.6;
+  margin: 0 0 1.5rem; padding-left: 1.1rem;
+}
+.feature-list li { margin-bottom: 0.35rem; }
+.card .btn { width: 100%; }
