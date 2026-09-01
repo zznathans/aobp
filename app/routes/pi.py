@@ -49,18 +49,38 @@ _LIST_STYLE = """
 """
 
 _DETAIL_STYLE = """
-  .page { max-width: 44rem; margin: 0 auto; padding: 2rem 1.5rem; }
+  .page { max-width: 64rem; margin: 0 auto; padding: 2rem 1.5rem; }
   .header { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; }
   .header .name { font-size: 1.3rem; font-weight: 600; }
   .header .meta { color: #9aa4b2; font-size: 0.85rem; margin-top: 0.25rem; }
-  h2 { font-size: 1rem; margin: 2rem 0 0.75rem; }
-  h2:first-of-type { margin-top: 0; }
+  h2 { font-size: 1rem; margin: 0 0 0.75rem; }
   table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
   th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #2a2e37; }
   .material-cell { display: flex; align-items: center; gap: 0.5rem; }
   .material-cell .icon { width: 24px; height: 24px; border-radius: 4px; flex-shrink: 0; }
   .back { display: inline-block; margin-top: 1.5rem; }
   .empty { color: #9aa4b2; }
+  .summary {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+    gap: 0.75rem; margin-bottom: 1.5rem;
+  }
+  .summary-stat {
+    background: #1a1d24; border: 1px solid #2a2e37; border-radius: 10px; padding: 0.75rem 1rem;
+  }
+  .summary-stat .value { font-size: 1.2rem; font-weight: 600; }
+  .summary-stat .label {
+    color: #9aa4b2; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .status-extracting { color: #3ddc84; }
+  .status-idle { color: #9aa4b2; }
+  .section-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+    gap: 1rem;
+  }
+  .section-box {
+    background: #1a1d24; border: 1px solid #2a2e37; border-radius: 10px;
+    padding: 1rem; overflow-x: auto;
+  }
 """
 
 _PLANET_TYPE_LABELS: dict[str, str] = {
@@ -350,12 +370,28 @@ async def colony_detail(
             return ""
         header_html = "".join(f"<th>{escape(h)}</th>" for h in headers)
         return f"""
-          <h2>{escape(title)}</h2>
-          <table>
-            <thead><tr>{header_html}</tr></thead>
-            <tbody>{rows_html}</tbody>
-          </table>
+          <div class="section-box">
+            <h2>{escape(title)}</h2>
+            <table>
+              <thead><tr>{header_html}</tr></thead>
+              <tbody>{rows_html}</tbody>
+            </table>
+          </div>
         """
+
+    expiry_times = [
+        _parse_esi_time(pin["expiry_time"]) for pin in colony.pins if pin.get("expiry_time")
+    ]
+    future_expiries = [t for t in expiry_times if t > now]
+    if future_expiries:
+        status_html = (
+            f'<span class="status-extracting">Extracting &middot; '
+            f"ready {escape(humanize_relative_time(min(future_expiries)))}</span>"
+        )
+    elif expiry_times:
+        status_html = '<span class="status-idle">Extraction expired</span>'
+    else:
+        status_html = '<span class="status-idle">Idle</span>'
 
     header = f"""
       <div class="header">
@@ -367,12 +403,36 @@ async def colony_detail(
       </div>
     """
 
+    summary_html = f"""
+      <div class="summary">
+        <div class="summary-stat">
+          <div class="value">{len(extractor_rows)}</div>
+          <div class="label">Extractors</div>
+        </div>
+        <div class="summary-stat">
+          <div class="value">{len(factory_rows)}</div>
+          <div class="label">Factories</div>
+        </div>
+        <div class="summary-stat">
+          <div class="value">{len(storage_rows)}</div>
+          <div class="label">Storage</div>
+        </div>
+        <div class="summary-stat">
+          <div class="value">{status_html}</div>
+          <div class="label">Status</div>
+        </div>
+      </div>
+    """
+
     body = f"""<div class="page">{header}
-      {_section("Extractors", ["Pin", "Product", "Expires"], "".join(extractor_rows))}
-      {_section("Factories", ["Pin", "Inputs", "Output"], "".join(factory_rows))}
-      {_section("Storage", ["Pin", "Contents"], "".join(storage_rows))}
-      {_section("Links", ["Source pin", "Destination pin", "Link level"], link_rows)}
-      {_section("Routes", ["Source pin", "Destination pin", "Content"], route_rows)}
+      {summary_html}
+      <div class="section-grid">
+        {_section("Extractors", ["Pin", "Product", "Expires"], "".join(extractor_rows))}
+        {_section("Factories", ["Pin", "Inputs", "Output"], "".join(factory_rows))}
+        {_section("Storage", ["Pin", "Contents"], "".join(storage_rows))}
+        {_section("Links", ["Source pin", "Destination pin", "Link level"], link_rows)}
+        {_section("Routes", ["Source pin", "Destination pin", "Content"], route_rows)}
+      </div>
       <a class="btn btn-secondary back" href="/pi">Back to PI Setups</a>
     </div>"""
     page_title = f"{planet_names.get(colony.planet_id) or planet_name} - eve-build"
