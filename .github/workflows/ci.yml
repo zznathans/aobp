@@ -2,7 +2,6 @@ name: CI
 
 on:
   pull_request:
-    paths-ignore: ["charts/**", "**.md"]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
