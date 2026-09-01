@@ -9,6 +9,15 @@ helm unittest charts/eve-build
 helm install eve-build oci://ghcr.io/zznathans/eve-build-chart --version X.Y.Z
 ```
 
+Alternatively, the same chart is also published as a traditional Helm chart
+repo on GitHub Pages (see [Releasing](releasing.md)):
+
+```bash
+helm repo add eve-build https://zznathans.github.io/eve-build/
+helm repo update
+helm install eve-build eve-build/eve-build-chart --version X.Y.Z
+```
+
 It deploys a Deployment + Service exposing `/` and `/health` — no chart-owned
 Ingress, so put it behind whatever ingress/traffic routing your cluster
 already uses. `helm.yml` lints and unit-tests the chart on every push/PR that
