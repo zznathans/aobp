@@ -21,6 +21,9 @@ else:
 _ASSETS_CACHE_TTL_SECONDS = 60 * 60
 _BLUEPRINTS_CACHE_TTL_SECONDS = 60 * 60
 _INDUSTRY_JOBS_CACHE_TTL_SECONDS = 60 * 60
+# Shorter than the other sources - extractor/factory expiry timers are time-sensitive,
+# and a colony's own list is cheap (few colonies per character, unlike assets/jobs).
+_COLONIES_CACHE_TTL_SECONDS = 60 * 15
 
 
 class _Source(NamedTuple):
@@ -32,6 +35,7 @@ class _Source(NamedTuple):
 _ASSETS_SOURCE = _Source("Assets", "assets", "character_assets")
 _BLUEPRINTS_SOURCE = _Source("Blueprints", "blueprints", "character_blueprints")
 _INDUSTRY_JOBS_SOURCE = _Source("Industry jobs", "industry_jobs", "character_industry_jobs")
+_COLONIES_SOURCE = _Source("PI colonies", "planetary_colonies", "character_colonies")
 _CORP_ASSETS_SOURCE = _Source("Corporation assets", "corp_assets", "corporation_assets")
 _CORP_BLUEPRINTS_SOURCE = _Source(
     "Corporation blueprints", "corp_blueprints", "corporation_blueprints"
@@ -40,7 +44,7 @@ _CORP_INDUSTRY_JOBS_SOURCE = _Source(
     "Corporation industry jobs", "corp_industry_jobs", "corporation_industry_jobs"
 )
 
-_PERSONAL_SOURCES = (_ASSETS_SOURCE, _BLUEPRINTS_SOURCE, _INDUSTRY_JOBS_SOURCE)
+_PERSONAL_SOURCES = (_ASSETS_SOURCE, _BLUEPRINTS_SOURCE, _INDUSTRY_JOBS_SOURCE, _COLONIES_SOURCE)
 _CORP_SOURCES = (_CORP_ASSETS_SOURCE, _CORP_BLUEPRINTS_SOURCE, _CORP_INDUSTRY_JOBS_SOURCE)
 
 
@@ -136,6 +140,53 @@ async def get_character_industry_jobs(
         ttl_seconds=_INDUSTRY_JOBS_CACHE_TTL_SECONDS,
         entry_type=esi.IndustryJobEntry,
         fetch=lambda: esi.get_character_industry_jobs(settings, access_token, character_id),
+    )
+
+
+async def _fetch_colony_records(
+    settings: Settings, access_token: str, character_id: int
+) -> list[esi.ColonyRecord]:
+    summaries = await esi.get_character_colonies(settings, access_token, character_id)
+    records = []
+    for summary in summaries:
+        detail = await esi.get_character_colony_detail(
+            settings, access_token, character_id, summary.planet_id
+        )
+        records.append(
+            esi.ColonyRecord(
+                planet_id=summary.planet_id,
+                solar_system_id=summary.solar_system_id,
+                planet_type=summary.planet_type,
+                owner_id=summary.owner_id,
+                last_update=summary.last_update,
+                upgrade_level=summary.upgrade_level,
+                num_pins=summary.num_pins,
+                pins=detail.pins,
+                links=detail.links,
+                routes=detail.routes,
+            )
+        )
+    return records
+
+
+async def get_character_colonies(
+    db: AsyncIOMotorDatabase,
+    redis: Redis | None,
+    settings: Settings,
+    access_token: str,
+    character_id: int,
+) -> list[esi.ColonyRecord]:
+    """No get_merged_colonies/corp equivalent - ESI has no corporation PI endpoint, so
+    unlike assets/blueprints/jobs this is personal-only, with nothing to merge."""
+    return await esi_cache.cached_character_list(
+        db,
+        redis,
+        collection_name=_COLONIES_SOURCE.collection_name,
+        cache_key_prefix=_COLONIES_SOURCE.cache_key_prefix,
+        character_id=character_id,
+        ttl_seconds=_COLONIES_CACHE_TTL_SECONDS,
+        entry_type=esi.ColonyRecord,
+        fetch=lambda: _fetch_colony_records(settings, access_token, character_id),
     )
 
 

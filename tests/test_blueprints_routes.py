@@ -25,13 +25,14 @@ def _log_in(
     client: TestClient,
     test_settings: Settings,
     rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+    scopes: list[str] | None = None,
 ) -> None:
     private_key, jwk = rsa_key_pair
     login_response = client.get("/auth/login", follow_redirects=False)
     state = parse_qs(urlparse(login_response.headers["location"]).query)["state"][0]
 
     access_token = make_access_token(
-        private_key, character_id=CHARACTER_ID, character_name="Alt Pilot"
+        private_key, character_id=CHARACTER_ID, character_name="Alt Pilot", scopes=scopes
     )
     respx.post(test_settings.eve_sso_token_url).mock(
         return_value=Response(

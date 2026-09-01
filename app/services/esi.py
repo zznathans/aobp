@@ -284,6 +284,98 @@ async def get_character_industry_jobs(
 
 
 @dataclass(frozen=True)
+class ColonyEntry:
+    planet_id: int
+    solar_system_id: int
+    planet_type: str
+    owner_id: int
+    last_update: str
+    upgrade_level: int
+    num_pins: int
+
+
+@dataclass(frozen=True)
+class ColonyDetailEntry:
+    pins: list[dict[str, Any]]
+    links: list[dict[str, Any]]
+    routes: list[dict[str, Any]]
+
+
+@dataclass(frozen=True)
+class ColonyRecord:
+    """A colony's list-level summary merged with its per-planet detail, so the whole
+    thing can be cached as one flat record via esi_cache.cached_character_list."""
+
+    planet_id: int
+    solar_system_id: int
+    planet_type: str
+    owner_id: int
+    last_update: str
+    upgrade_level: int
+    num_pins: int
+    pins: list[dict[str, Any]]
+    links: list[dict[str, Any]]
+    routes: list[dict[str, Any]]
+
+
+async def get_character_colonies(
+    settings: Settings, access_token: str, character_id: int
+) -> list[ColonyEntry]:
+    url = f"{settings.esi_base_url}/characters/{character_id}/planets/"
+    headers = _headers(settings, access_token)
+
+    async with httpx.AsyncClient() as client:
+        response = await _timed_get(client, url, endpoint="characters/planets", headers=headers)
+
+    return [
+        ColonyEntry(
+            planet_id=entry["planet_id"],
+            solar_system_id=entry["solar_system_id"],
+            planet_type=entry["planet_type"],
+            owner_id=entry["owner_id"],
+            last_update=entry["last_update"],
+            upgrade_level=entry["upgrade_level"],
+            num_pins=entry["num_pins"],
+        )
+        for entry in response.json()
+    ]
+
+
+async def get_character_colony_detail(
+    settings: Settings, access_token: str, character_id: int, planet_id: int
+) -> ColonyDetailEntry:
+    url = f"{settings.esi_base_url}/characters/{character_id}/planets/{planet_id}/"
+    headers = _headers(settings, access_token)
+
+    async with httpx.AsyncClient() as client:
+        response = await _timed_get(
+            client, url, endpoint="characters/planet_detail", headers=headers
+        )
+
+    data = response.json()
+    return ColonyDetailEntry(
+        pins=data.get("pins", []),
+        links=data.get("links", []),
+        routes=data.get("routes", []),
+    )
+
+
+async def get_planet_name(settings: Settings, planet_id: int) -> str | None:
+    """Unauthenticated - ESI's /universe/planets/{planet_id}/ endpoint is public."""
+    url = f"{settings.esi_base_url}/universe/planets/{planet_id}"
+    headers = _headers(settings, None)
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await _timed_get(client, url, endpoint="universe/planets", headers=headers)
+        except httpx.HTTPStatusError:
+            return None
+
+    name = response.json().get("name")
+    return name if isinstance(name, str) else None
+
+
+@dataclass(frozen=True)
 class MarketPriceEntry:
     type_id: int
     adjusted_price: float | None
@@ -357,3 +449,20 @@ async def get_system_security_status(settings: Settings, system_id: int) -> floa
 
     security_status = response.json().get("security_status")
     return float(security_status) if isinstance(security_status, int | float) else None
+
+
+async def get_system_name(settings: Settings, system_id: int) -> str | None:
+    headers = _headers(settings, None)
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await _timed_get(
+                client,
+                f"{settings.esi_base_url}/universe/systems/{system_id}",
+                endpoint="universe/systems",
+                headers=headers,
+            )
+        except httpx.HTTPStatusError:
+            return None
+
+    name = response.json().get("name")
+    return name if isinstance(name, str) else None
