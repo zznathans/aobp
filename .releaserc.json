@@ -14,7 +14,8 @@
     ["@qiwi/semantic-release-gh-pages-plugin", {
       "src": "gh-pages-dist",
       "branch": "gh-pages",
-      "msg": "eve-build-chart ${nextRelease.version}"
+      "msg": "eve-build-chart ${nextRelease.version}",
+      "repositoryUrl": "https://github.com/zznathans/eve-build"
     }]
   ]
 }
