@@ -288,9 +288,7 @@ async def colony_detail(
             if expiry_time is not None:
                 expiry_dt = _parse_esi_time(expiry_time)
                 expiry_label = (
-                    escape(humanize_relative_time(expiry_dt))
-                    if expiry_dt > now
-                    else "expired"
+                    escape(humanize_relative_time(expiry_dt)) if expiry_dt > now else "expired"
                 )
             else:
                 expiry_label = "-"
