@@ -171,7 +171,7 @@ async def test_pi_list_shows_idle_when_extraction_expired(
 
 
 @respx.mock
-async def test_pi_detail_shows_extractor_factory_storage_link_route(
+async def test_pi_detail_shows_extractor_factory_storage(
     client: TestClient,
     test_settings: Settings,
     mongo_db: AsyncMongoMockClient,
@@ -190,8 +190,8 @@ async def test_pi_detail_shows_extractor_factory_storage_link_route(
     assert "Factories" in response.text
     assert "Coolant" in response.text
     assert "Storage" in response.text
-    assert "Links" in response.text
-    assert "Routes" in response.text
+    assert "Links" not in response.text
+    assert "Routes" not in response.text
 
 
 @respx.mock

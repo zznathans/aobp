@@ -17,7 +17,7 @@ The dashboard and blueprint library need `esi-characters.read_blueprints.v1`,
 `esi-assets.read_assets.v1`, `esi-industry.read_character_jobs.v1`, and
 `esi-universe.read_structures.v1` (resolves player-structure location names —
 without it those fall back to a raw `Location {id}` label) in `EVE_SSO_SCOPES`.
-The PI Setups page (`/pi`) additionally needs `esi-planets.manage_planets.v1` —
+The Planets page (`/pi`) additionally needs `esi-planets.manage_planets.v1` —
 this is ESI's only PI scope; despite the name it only grants read access to
 `/characters/{id}/planets/*`, there's no narrower read-only variant. All five
 scopes must also be enabled on the application itself at
