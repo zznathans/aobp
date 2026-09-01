@@ -15,53 +15,112 @@ from app.deps import get_current_character
 from app.models.character import CharacterDocument
 from app.services import character_data, locations, sde
 from app.services.esi import ColonyRecord
-from app.web import format_number, humanize_relative_time, render_page
+from app.web import format_number, humanize_relative_time, item_icon_url, render_page
 
 router = APIRouter(prefix="/pi", tags=["pi"])
 
 _PI_SCOPE = "esi-planets.manage_planets.v1"
+# EVE's hard cap on planetary command centers per character - the list page always
+# reserves this many grid cells, filling unused ones with an empty placeholder.
+_MAX_COLONY_SLOTS = 6
 
-_LIST_STYLE = """
-  .page { max-width: 60rem; margin: 0 auto; padding: 2rem 1.5rem; }
-  h1 { font-size: 1.4rem; margin: 0 0 1.5rem; }
-  .pi-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-  .pi-table th, .pi-table td {
-    padding: 0.5rem 0.75rem; border-bottom: 1px solid #2a2e37; text-align: left;
-    vertical-align: middle;
-  }
-  .pi-table th {
-    color: #9aa4b2; font-weight: 600; font-size: 0.7rem;
-    text-transform: uppercase; letter-spacing: 0.03em;
-  }
-  .pi-table tr:hover td { background: #1a1d24; }
-  .pi-link {
-    display: flex; align-items: center; gap: 0.6rem; text-decoration: none; color: inherit;
-  }
-  .pi-link .icon { width: 32px; height: 32px; border-radius: 4px; flex-shrink: 0; }
-  .pi-link .name { font-weight: 600; }
+_CARD_STYLE = """
   .status-extracting { color: #3ddc84; }
   .status-idle { color: #9aa4b2; }
-  .empty { color: #9aa4b2; }
+  .item-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 16rem));
+    gap: 0.75rem;
+  }
+  .item-card {
+    background: #14161c; border: 1px solid #2a2e37; border-radius: 8px;
+    padding: 0.85rem 1rem; font-size: 0.85rem;
+    position: relative; overflow: hidden;
+    display: block; text-decoration: none; color: inherit;
+  }
+  a.item-card:hover { border-color: #4c8bf5; }
+  .item-card-bg {
+    position: absolute; top: 50%; right: -0.5rem; transform: translateY(-50%);
+    width: 72px; height: 72px; opacity: 0.14; pointer-events: none;
+  }
+  .item-card-content {
+    position: relative; z-index: 1; display: flex; flex-direction: column; gap: 0.45rem;
+  }
+  .item-card .item-title { font-weight: 600; }
+  .item-card .item-line {
+    color: #9aa4b2; font-size: 0.78rem; display: flex; justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .item-card .item-line .item-value { color: #e6e6e6; text-align: right; }
+  .item-card .item-block { display: flex; flex-direction: column; gap: 0.25rem; }
+  .item-card .item-subhead {
+    color: #9aa4b2; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .mini-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  .mini-table td { padding: 0.15rem 0; line-height: 1.2; color: #9aa4b2; }
+  .mini-table td:last-child { text-align: right; color: #e6e6e6; white-space: nowrap; }
+  .produces-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .produces-icon { width: 28px; height: 28px; border-radius: 4px; }
+"""
+
+_LIST_STYLE = _CARD_STYLE + """
+  .page { max-width: 80%; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 1.4rem; margin: 0 0 1.5rem; }
   .scope-notice {
     background: #1a1d24; border: 1px solid #2a2e37; border-radius: 10px;
     padding: 1rem 1.25rem; color: #9aa4b2;
   }
+  .planet-grid { grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+  .planet-grid .item-card { padding: 1.5rem 1.75rem; font-size: 0.95rem; }
+  .planet-grid .item-card .item-title { font-size: 1.1rem; margin-bottom: 0.15rem; }
+  .planet-grid .item-card-content { gap: 0.6rem; }
+  .item-card-empty {
+    border-style: dashed; display: flex; align-items: center; justify-content: center;
+    min-height: 12rem; color: #9aa4b2; font-size: 0.85rem;
+  }
 """
 
-_DETAIL_STYLE = """
-  .page { max-width: 44rem; margin: 0 auto; padding: 2rem 1.5rem; }
+_DETAIL_STYLE = _CARD_STYLE + """
+  .page { max-width: 80%; margin: 0 auto; padding: 2rem 1.5rem; }
   .header { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; }
   .header .name { font-size: 1.3rem; font-weight: 600; }
   .header .meta { color: #9aa4b2; font-size: 0.85rem; margin-top: 0.25rem; }
-  h2 { font-size: 1rem; margin: 2rem 0 0.75rem; }
-  h2:first-of-type { margin-top: 0; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-  th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #2a2e37; }
-  .material-cell { display: flex; align-items: center; gap: 0.5rem; }
-  .material-cell .icon { width: 24px; height: 24px; border-radius: 4px; flex-shrink: 0; }
+  h2 { font-size: 1rem; margin: 0 0 0.75rem; }
   .back { display: inline-block; margin-top: 1.5rem; }
-  .empty { color: #9aa4b2; }
+  .summary {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+    gap: 0.75rem; margin-bottom: 1.5rem;
+  }
+  .summary-stat {
+    background: #1a1d24; border: 1px solid #2a2e37; border-radius: 10px; padding: 0.75rem 1rem;
+  }
+  .summary-stat .value { font-size: 1.2rem; font-weight: 600; }
+  .summary-stat .label {
+    color: #9aa4b2; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .summary-stat-icon { display: flex; align-items: center; gap: 0.6rem; }
+  .summary-stat-icon .icon { width: 32px; height: 32px; border-radius: 4px; flex-shrink: 0; }
+  .flow-caret { font-size: 0.8rem; flex-shrink: 0; line-height: 1; }
+  .flow-caret-in { color: #f0625a; }
+  .flow-caret-out { color: #3ddc84; }
+  .section-grid { display: flex; flex-direction: column; gap: 1rem; }
+  .section-box {
+    background: #1a1d24; border: 1px solid #2a2e37; border-radius: 10px;
+    padding: 1rem; overflow-x: auto;
+  }
+  .facility-group + .facility-group { margin-top: 1rem; }
+  .facility-group h3 {
+    font-size: 0.75rem; margin: 0 0 0.5rem; color: #9aa4b2;
+    text-transform: uppercase; letter-spacing: 0.03em;
+  }
 """
+
+# Keyed by type_id rather than name - immune to any casing/locale differences in the
+# resolved SDE type name, unlike matching on the display string.
+_FACILITY_TIER_ORDER: dict[int, int] = {
+    2470: 0,  # Basic Industry Facility
+    2471: 1,  # Advanced Industry Facility
+    2477: 2,  # High-Tech Production Plant
+}
 
 _PLANET_TYPE_LABELS: dict[str, str] = {
     "temperate": "Temperate",
@@ -75,9 +134,9 @@ _PLANET_TYPE_LABELS: dict[str, str] = {
 }
 
 _scope_notice_html = """<div class="page">
-  <h1>PI Setups</h1>
+  <h1>Planets</h1>
   <div class="scope-notice">
-    PI Setups needs an extra permission this character hasn't granted yet.
+    Planets needs an extra permission this character hasn't granted yet.
     <a href="/auth/logout">Log out</a> and log back in to grant access.
   </div>
 </div>"""
@@ -122,18 +181,7 @@ async def list_colonies(
     colonies = await _get_colonies_or_none(db, redis, settings, character)
     if colonies is None:
         return HTMLResponse(
-            render_page(
-                "PI Setups - eve-build", _scope_notice_html, _LIST_STYLE, character=character
-            )
-        )
-
-    if not colonies:
-        body = (
-            '<div class="page"><h1>PI Setups</h1>'
-            '<p class="empty">No planetary colonies found.</p></div>'
-        )
-        return HTMLResponse(
-            render_page("PI Setups - eve-build", body, _LIST_STYLE, character=character)
+            render_page("Planets - eve-build", _scope_notice_html, _LIST_STYLE, character=character)
         )
 
     planet_names = await locations.resolve_planet_names(
@@ -142,6 +190,41 @@ async def list_colonies(
     system_names = await locations.resolve_system_names(
         db, redis, settings, {colony.solar_system_id for colony in colonies}
     )
+
+    schematics = await sde.list_all_planet_schematics(db)
+    schematic_by_id = {schematic["_id"]: schematic for schematic in schematics}
+
+    def _produced_type_ids(colony: ColonyRecord) -> list[int]:
+        """Distinct products this colony makes, in pin order - every extractor's
+        product and every factory's schematic output, deduped but not filtered for
+        intermediates (unlike the detail page's net resource flow), since this is
+        just a quick "what does this planet make" glance."""
+        produced: list[int] = []
+        seen: set[int] = set()
+        for pin in colony.pins:
+            extractor_details = pin.get("extractor_details")
+            schematic_id = pin.get("schematic_id")
+            product_type_id: int | None = None
+            if extractor_details is not None:
+                product_type_id = extractor_details.get("product_type_id")
+            elif schematic_id is not None and schematic_id in schematic_by_id:
+                output = cast(dict[str, int], schematic_by_id[schematic_id]["output"])
+                product_type_id = output["type_id"]
+            if product_type_id is not None and product_type_id not in seen:
+                seen.add(product_type_id)
+                produced.append(product_type_id)
+        return produced
+
+    produced_type_ids_by_planet = {
+        colony.planet_id: _produced_type_ids(colony) for colony in colonies
+    }
+    all_produced_type_ids = {
+        type_id for ids in produced_type_ids_by_planet.values() for type_id in ids
+    }
+    type_docs = await sde.type_docs(db, redis, settings, all_produced_type_ids)
+
+    def _type_name(type_id: int) -> str:
+        return str(type_docs.get(type_id, {}).get("name", f"Type {type_id}"))
 
     rows_html = []
     for colony in sorted(colonies, key=lambda c: planet_names.get(c.planet_id) or ""):
@@ -169,39 +252,63 @@ async def list_colonies(
         else:
             status_html = '<span class="status-idle">Idle</span>'
 
+        def _line(label: str, value: str) -> str:
+            return (
+                f'<div class="item-line"><span>{label}</span>'
+                f'<span class="item-value">{value}</span></div>'
+            )
+
+        extractor_count = sum(1 for pin in colony.pins if pin.get("extractor_details"))
+        factory_count = sum(
+            1
+            for pin in colony.pins
+            if pin.get("schematic_id") is not None and not pin.get("extractor_details")
+        )
+        # Derived from the actual pins list, not colony.num_pins - that's a separate
+        # ESI summary field and shouldn't be trusted to always agree with len(pins).
+        storage_count = len(colony.pins) - extractor_count - factory_count
+
+        produces_html = ""
+        produced_type_ids = produced_type_ids_by_planet[colony.planet_id]
+        if produced_type_ids:
+            icons_html = "".join(
+                f'<img class="produces-icon" src="{escape(item_icon_url(type_id))}" '
+                f'alt="{escape(_type_name(type_id))}" title="{escape(_type_name(type_id))}" '
+                f"onerror=\"this.style.visibility='hidden'\">"
+                for type_id in produced_type_ids
+            )
+            produces_html = f"""
+              <div class="item-block">
+                <div class="item-subhead">Produces</div>
+                <div class="produces-row">{icons_html}</div>
+              </div>
+            """
+
         detail_href = escape(f"/pi/{colony.planet_id}")
         rows_html.append(f"""
-          <tr>
-            <td>
-              <a class="pi-link" href="{detail_href}">
-                <div>
-                  <div class="name">{planet_name}</div>
-                </div>
-              </a>
-            </td>
-            <td>{type_label}</td>
-            <td>{system_name}</td>
-            <td>{colony.upgrade_level}</td>
-            <td>{colony.num_pins}</td>
-            <td>{status_html}</td>
-          </tr>
+          <a class="item-card" href="{detail_href}">
+            <div class="item-card-content">
+              <div class="item-title">{planet_name}</div>
+              {produces_html}
+              {_line("Type", type_label)}
+              {_line("System", system_name)}
+              {_line("Upgrade level", str(colony.upgrade_level))}
+              {_line("Extractors", str(extractor_count))}
+              {_line("Factories", str(factory_count))}
+              {_line("Storage", str(storage_count))}
+              {_line("Status", status_html)}
+            </div>
+          </a>
         """)
 
+    empty_slots = max(0, _MAX_COLONY_SLOTS - len(rows_html))
+    rows_html.extend(['<div class="item-card item-card-empty">Empty</div>'] * empty_slots)
+
     body = f"""<div class="page">
-      <h1>PI Setups</h1>
-      <table class="pi-table">
-        <thead>
-          <tr>
-            <th>Planet</th><th>Type</th><th>System</th>
-            <th>Upgrade level</th><th>Pins</th><th>Status</th>
-          </tr>
-        </thead>
-        <tbody>{"".join(rows_html)}</tbody>
-      </table>
+      <h1>Planets</h1>
+      <div class="item-grid planet-grid">{"".join(rows_html)}</div>
     </div>"""
-    return HTMLResponse(
-        render_page("PI Setups - eve-build", body, _LIST_STYLE, character=character)
-    )
+    return HTMLResponse(render_page("Planets - eve-build", body, _LIST_STYLE, character=character))
 
 
 @router.get("/{planet_id}", response_class=HTMLResponse)
@@ -215,9 +322,7 @@ async def colony_detail(
     colonies = await _get_colonies_or_none(db, redis, settings, character)
     if colonies is None:
         return HTMLResponse(
-            render_page(
-                "PI Setups - eve-build", _scope_notice_html, _LIST_STYLE, character=character
-            )
+            render_page("Planets - eve-build", _scope_notice_html, _LIST_STYLE, character=character)
         )
 
     colony = next((c for c in colonies if c.planet_id == planet_id), None)
@@ -258,26 +363,70 @@ async def colony_detail(
     contents_type_ids = {
         item["type_id"] for pin in colony.pins for item in (pin.get("contents") or [])
     }
-    route_type_ids = {route["content_type_id"] for route in colony.routes}
     type_ids = (
         pin_type_ids
         | schematic_product_type_ids
         | schematic_input_type_ids
         | extractor_product_type_ids
         | contents_type_ids
-        | route_type_ids
     )
     type_docs = await sde.type_docs(db, redis, settings, type_ids)
 
     def _type_name(type_id: int) -> str:
         return str(type_docs.get(type_id, {}).get("name", f"Type {type_id}"))
 
+    def _card(
+        title: str,
+        lines: list[tuple[str, str]],
+        extra_html: str = "",
+        bg_type_id: int | None = None,
+    ) -> str:
+        lines_html = "".join(
+            f'<div class="item-line"><span>{escape(label)}</span>'
+            f'<span class="item-value">{value}</span></div>'
+            for label, value in lines
+        )
+        bg_html = ""
+        if bg_type_id is not None:
+            bg_url = escape(item_icon_url(bg_type_id))
+            bg_html = (
+                f'<img class="item-card-bg" src="{bg_url}" alt="" aria-hidden="true" '
+                f"onerror=\"this.style.visibility='hidden'\">"
+            )
+        return f"""
+          <div class="item-card">
+            {bg_html}
+            <div class="item-card-content">
+              <div class="item-title">{escape(title)}</div>
+              {extra_html}
+              {lines_html}
+            </div>
+          </div>
+        """
+
+    def _quantity_table(label: str, rows: list[tuple[str, str]]) -> str:
+        rows_html = "".join(
+            f"<tr><td>{name}</td><td>{quantity}</td></tr>" for name, quantity in rows
+        )
+        return f"""
+          <div class="item-block">
+            <div class="item-subhead">{escape(label)}</div>
+            <table class="mini-table"><tbody>{rows_html}</tbody></table>
+          </div>
+        """
+
     now = datetime.now(UTC)
-    extractor_rows = []
-    factory_rows = []
-    storage_rows = []
+    extractor_cards = []
+    factory_cards_by_type: dict[int, list[str]] = {}
+    storage_cards = []
+    resource_flow: dict[int, dict[str, float]] = {}
+
+    def _add_flow(type_id: int, direction: str, quantity: float) -> None:
+        entry = resource_flow.setdefault(type_id, {"in": 0.0, "out": 0.0})
+        entry[direction] += quantity
+
     for pin in colony.pins:
-        pin_type_name = escape(_type_name(pin["type_id"]))
+        pin_type_name = _type_name(pin["type_id"])
         extractor_details = pin.get("extractor_details")
         schematic_id = pin.get("schematic_id")
 
@@ -292,70 +441,102 @@ async def colony_detail(
                 )
             else:
                 expiry_label = "-"
-            extractor_rows.append(f"""
-              <tr>
-                <td>{pin_type_name}</td>
-                <td>{product_name}</td>
-                <td>{expiry_label}</td>
-              </tr>
-            """)
+            extractor_cards.append(
+                _card(
+                    pin_type_name,
+                    [("Product", product_name), ("Expires", expiry_label)],
+                )
+            )
+            if product_type_id is not None:
+                _add_flow(product_type_id, "out", extractor_details.get("qty_per_cycle", 0))
         elif schematic_id is not None and schematic_id in schematic_by_id:
             schematic = schematic_by_id[schematic_id]
             output = cast(dict[str, int], schematic["output"])
             inputs = cast(list[dict[str, int]], schematic["inputs"])
-            inputs_text = ", ".join(
-                f"{_type_name(material['type_id'])} &times;{material['quantity']}"
-                for material in inputs
+            inputs_table = _quantity_table(
+                "Inputs",
+                [
+                    (escape(_type_name(material["type_id"])), f"&times;{material['quantity']}")
+                    for material in inputs
+                ],
             )
-            output_name = escape(_type_name(output["type_id"]))
-            factory_rows.append(f"""
-              <tr>
-                <td>{pin_type_name}</td>
-                <td>{escape(inputs_text)}</td>
-                <td>{output_name} &times;{output['quantity']}</td>
-              </tr>
-            """)
+            output_table = _quantity_table(
+                "Output",
+                [(escape(_type_name(output["type_id"])), f"&times;{output['quantity']}")],
+            )
+            cycle_minutes = cast(int, schematic["cycle_time_seconds"]) // 60
+            schematic_name = escape(str(schematic["name"]))
+            factory_cards_by_type.setdefault(pin["type_id"], []).append(
+                _card(
+                    schematic_name,
+                    [("Cycle time", f"{cycle_minutes} min")],
+                    extra_html=inputs_table + output_table,
+                    bg_type_id=output["type_id"],
+                )
+            )
+            for material in inputs:
+                _add_flow(material["type_id"], "in", material["quantity"])
+            _add_flow(output["type_id"], "out", output["quantity"])
         else:
             contents = pin.get("contents") or []
-            contents_text = ", ".join(
-                f"{_type_name(item['type_id'])} &times;{format_number(item['amount'])}"
-                for item in contents
-            )
-            storage_rows.append(f"""
-              <tr>
-                <td>{pin_type_name}</td>
-                <td>{escape(contents_text) if contents_text else "-"}</td>
-              </tr>
-            """)
+            if contents:
+                contents_table = _quantity_table(
+                    "Contents",
+                    [
+                        (
+                            escape(_type_name(item["type_id"])),
+                            f"&times;{format_number(item['amount'])}",
+                        )
+                        for item in contents
+                    ],
+                )
+                storage_cards.append(_card(pin_type_name, [], extra_html=contents_table))
+            else:
+                storage_cards.append(_card(pin_type_name, [("Contents", "-")]))
 
-    link_rows = "".join(f"""
-          <tr>
-            <td>{link['source_pin_id']}</td>
-            <td>{link['destination_pin_id']}</td>
-            <td>{link['link_level']}</td>
-          </tr>
-        """ for link in colony.links)
-
-    route_rows = "".join(f"""
-          <tr>
-            <td>{route['source_pin_id']}</td>
-            <td>{route['destination_pin_id']}</td>
-            <td>{escape(_type_name(route['content_type_id']))}
-              &times;{format_number(route['quantity'])}</td>
-          </tr>
-        """ for route in colony.routes)
-
-    def _section(title: str, headers: list[str], rows_html: str) -> str:
-        if not rows_html:
+    def _section(title: str, cards_html: str) -> str:
+        if not cards_html:
             return ""
-        header_html = "".join(f"<th>{escape(h)}</th>" for h in headers)
         return f"""
-          <h2>{escape(title)}</h2>
-          <table>
-            <thead><tr>{header_html}</tr></thead>
-            <tbody>{rows_html}</tbody>
-          </table>
+          <div class="section-box">
+            <h2>{escape(title)}</h2>
+            <div class="item-grid">{cards_html}</div>
+          </div>
         """
+
+    def _grouped_section(title: str, cards_by_group: dict[int, list[str]]) -> str:
+        if not cards_by_group:
+            return ""
+        group_type_ids = sorted(
+            cards_by_group,
+            key=lambda type_id: (_FACILITY_TIER_ORDER.get(type_id, 99), _type_name(type_id)),
+        )
+        groups_html = "".join(f"""
+              <div class="facility-group">
+                <h3>{escape(_type_name(group_type_id))}</h3>
+                <div class="item-grid">{"".join(cards_by_group[group_type_id])}</div>
+              </div>
+            """ for group_type_id in group_type_ids)
+        return f"""
+          <div class="section-box">
+            <h2>{escape(title)}</h2>
+            {groups_html}
+          </div>
+        """
+
+    expiry_times = [
+        _parse_esi_time(pin["expiry_time"]) for pin in colony.pins if pin.get("expiry_time")
+    ]
+    future_expiries = [t for t in expiry_times if t > now]
+    if future_expiries:
+        status_html = (
+            f'<span class="status-extracting">Extracting &middot; '
+            f"ready {escape(humanize_relative_time(min(future_expiries)))}</span>"
+        )
+    elif expiry_times:
+        status_html = '<span class="status-idle">Extraction expired</span>'
+    else:
+        status_html = '<span class="status-idle">Idle</span>'
 
     header = f"""
       <div class="header">
@@ -367,13 +548,72 @@ async def colony_detail(
       </div>
     """
 
+    resource_names = sorted(resource_flow, key=lambda type_id: _type_name(type_id).lower())
+    # A resource produced AND consumed somewhere on this colony is an intermediate -
+    # excluded from both sides. Only raw inputs (consumed, never produced here) and
+    # final outputs (produced, never consumed here) are shown.
+    import_type_ids = [
+        type_id
+        for type_id in resource_names
+        if resource_flow[type_id]["in"] and not resource_flow[type_id]["out"]
+    ]
+    export_type_ids = [
+        type_id
+        for type_id in resource_names
+        if resource_flow[type_id]["out"] and not resource_flow[type_id]["in"]
+    ]
+
+    def _flow_stat(type_id: int, direction: str) -> str:
+        quantity = format_number(resource_flow[type_id][direction])
+        icon = escape(item_icon_url(type_id))
+        name = escape(_type_name(type_id))
+        caret_class = "flow-caret-in" if direction == "in" else "flow-caret-out"
+        caret_glyph = "&#9660;" if direction == "in" else "&#9650;"
+        return f"""
+          <div class="summary-stat summary-stat-icon">
+            <img class="icon" src="{icon}" alt="{name}" onerror="this.style.visibility='hidden'">
+            <span class="flow-caret {caret_class}">{caret_glyph}</span>
+            <div>
+              <div class="value">{quantity}</div>
+              <div class="label">{name} ({direction})</div>
+            </div>
+          </div>
+        """
+
+    flow_stats_html = "".join(_flow_stat(type_id, "in") for type_id in import_type_ids) + "".join(
+        _flow_stat(type_id, "out") for type_id in export_type_ids
+    )
+
+    summary_html = f"""
+      <div class="summary">
+        <div class="summary-stat">
+          <div class="value">{len(extractor_cards)}</div>
+          <div class="label">Extractors</div>
+        </div>
+        <div class="summary-stat">
+          <div class="value">{sum(len(cards) for cards in factory_cards_by_type.values())}</div>
+          <div class="label">Factories</div>
+        </div>
+        <div class="summary-stat">
+          <div class="value">{len(storage_cards)}</div>
+          <div class="label">Storage</div>
+        </div>
+        <div class="summary-stat">
+          <div class="value">{status_html}</div>
+          <div class="label">Status</div>
+        </div>
+      </div>
+      {f'<div class="summary">{flow_stats_html}</div>' if flow_stats_html else ""}
+    """
+
     body = f"""<div class="page">{header}
-      {_section("Extractors", ["Pin", "Product", "Expires"], "".join(extractor_rows))}
-      {_section("Factories", ["Pin", "Inputs", "Output"], "".join(factory_rows))}
-      {_section("Storage", ["Pin", "Contents"], "".join(storage_rows))}
-      {_section("Links", ["Source pin", "Destination pin", "Link level"], link_rows)}
-      {_section("Routes", ["Source pin", "Destination pin", "Content"], route_rows)}
-      <a class="btn btn-secondary back" href="/pi">Back to PI Setups</a>
+      {summary_html}
+      <div class="section-grid">
+        {_section("Extractors", "".join(extractor_cards))}
+        {_grouped_section("Factories", factory_cards_by_type)}
+        {_section("Storage", "".join(storage_cards))}
+      </div>
+      <a class="btn btn-secondary back" href="/pi">Back to Planets</a>
     </div>"""
     page_title = f"{planet_names.get(colony.planet_id) or planet_name} - eve-build"
     return HTMLResponse(render_page(page_title, body, _DETAIL_STYLE, character=character))

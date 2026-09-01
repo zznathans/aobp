@@ -227,7 +227,7 @@ def render_nav(character: CharacterDocument | None) -> str:
           <a href="/">Home</a>
           <a href="/blueprints">Blueprints</a>
           <a href="/assets">Assets</a>
-          <a href="/pi">PI Setups</a>
+          <a href="/pi">Planets</a>
           <a href="/planetary">PI Schematics</a>
         </div>
         <div class="nav-user">
