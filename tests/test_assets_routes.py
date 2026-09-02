@@ -241,7 +241,7 @@ async def test_list_assets_shows_totals_and_category_tables(
     # 100*5 + 50*50 + 999*1 + 10*100 + 3*200 + 500*3 = 500+2,500+999+1,000+600+1,500 = 7,099 ISK
     assert "7.1K ISK" in response.text
     # 2 distinct locations
-    assert '<div class="figure">2</div>' in response.text
+    assert '<div class="value">2</div>' in response.text
     # 100 + 50 + 999 + 10 + 3 + 500 = 1,662 total items
     assert "1,662" in response.text
     # No compressed ore owned in this fixture - the table must not render at all, not even
@@ -393,7 +393,7 @@ async def test_location_detail_shows_stats_and_items_at_that_location(
     assert "Pyerite" not in response.text
     assert f'href="/assets/{TRITANIUM_TYPE_ID}"' in response.text
     # 5 distinct item types at this location
-    assert '<div class="figure">5</div>' in response.text
+    assert '<div class="value">5</div>' in response.text
     # 100 + 999 + 10 + 3 + 500 = 1,612 total items at this location
     assert "1,612" in response.text
     assert '<a class="btn btn-secondary back" href="/assets">' in response.text

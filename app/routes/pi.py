@@ -15,7 +15,13 @@ from app.deps import get_current_character
 from app.models.character import CharacterDocument
 from app.services import character_data, locations, sde
 from app.services.esi import ColonyRecord
-from app.web import format_number, humanize_relative_time, item_icon_url, render_page
+from app.web import (
+    format_number,
+    humanize_relative_time,
+    item_icon_url,
+    item_line_html,
+    render_page,
+)
 
 router = APIRouter(prefix="/pi", tags=["pi"])
 
@@ -24,9 +30,8 @@ _PI_SCOPE = "esi-planets.manage_planets.v1"
 # reserves this many grid cells, filling unused ones with an empty placeholder.
 _MAX_COLONY_SLOTS = 6
 
-_CARD_STYLESHEET = "/static/pi-card.css"
-_LIST_STYLE = [_CARD_STYLESHEET, "/static/pi-list.css"]
-_DETAIL_STYLE = [_CARD_STYLESHEET, "/static/pi-detail.css"]
+_LIST_STYLE = ["/static/card.css", "/static/pi-list.css"]
+_DETAIL_STYLE = ["/static/card.css", "/static/pi-detail.css"]
 
 # Keyed by type_id rather than name - immune to any casing/locale differences in the
 # resolved SDE type name, unlike matching on the display string.
@@ -166,12 +171,6 @@ async def list_colonies(
         else:
             status_html = '<span class="status-idle">Idle</span>'
 
-        def _line(label: str, value: str) -> str:
-            return (
-                f'<div class="item-line"><span>{label}</span>'
-                f'<span class="item-value">{value}</span></div>'
-            )
-
         extractor_count = sum(1 for pin in colony.pins if pin.get("extractor_details"))
         factory_count = sum(
             1
@@ -204,13 +203,13 @@ async def list_colonies(
             <div class="item-card-content">
               <div class="item-title">{planet_name}</div>
               {produces_html}
-              {_line("Type", type_label)}
-              {_line("System", system_name)}
-              {_line("Upgrade level", str(colony.upgrade_level))}
-              {_line("Extractors", str(extractor_count))}
-              {_line("Factories", str(factory_count))}
-              {_line("Storage", str(storage_count))}
-              {_line("Status", status_html)}
+              {item_line_html("Type", type_label)}
+              {item_line_html("System", system_name)}
+              {item_line_html("Upgrade level", str(colony.upgrade_level))}
+              {item_line_html("Extractors", str(extractor_count))}
+              {item_line_html("Factories", str(factory_count))}
+              {item_line_html("Storage", str(storage_count))}
+              {item_line_html("Status", status_html)}
             </div>
           </a>
         """)
@@ -295,23 +294,18 @@ async def colony_detail(
         extra_html: str = "",
         bg_type_id: int | None = None,
     ) -> str:
-        lines_html = "".join(
-            f'<div class="item-line"><span>{escape(label)}</span>'
-            f'<span class="item-value">{value}</span></div>'
-            for label, value in lines
-        )
-        bg_html = ""
+        lines_html = "".join(item_line_html(label, value) for label, value in lines)
+        icon_html = ""
         if bg_type_id is not None:
-            bg_url = escape(item_icon_url(bg_type_id))
-            bg_html = (
-                f'<img class="item-card-bg" src="{bg_url}" alt="" aria-hidden="true" '
+            icon_url = escape(item_icon_url(bg_type_id))
+            icon_html = (
+                f'<img class="item-title-icon" src="{icon_url}" alt="" '
                 f"onerror=\"this.style.visibility='hidden'\">"
             )
         return f"""
           <div class="item-card">
-            {bg_html}
             <div class="item-card-content">
-              <div class="item-title">{escape(title)}</div>
+              <div class="item-title">{icon_html}{escape(title)}</div>
               {extra_html}
               {lines_html}
             </div>

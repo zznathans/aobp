@@ -323,7 +323,7 @@ async def test_list_blueprints_shows_owned_blueprint(
     assert "0/10" in response.text
     assert "0/20" in response.text
     assert "Jita IV - Moon 4" in response.text
-    assert "<th>Location</th>" in response.text
+    assert ">Location<" in response.text
 
 
 @respx.mock
@@ -510,13 +510,13 @@ async def test_blueprint_detail_shows_price_info_per_run(
 
     assert response.status_code == 200
     # 0 ME needs 10 Tritanium/run * 5 ISK = 50 ISK cost; product (type 587) is worth
-    # 1 * 100 ISK = 100 ISK; profit is the 50 ISK difference. These render as figure/label
-    # pairs in the summary box, not as one inline string.
+    # 1 * 100 ISK = 100 ISK; profit is the 50 ISK difference. These render as
+    # summary-stat tiles (value/label pairs), not as one inline string.
     assert "Cost / run" in response.text
     assert "Output / run" in response.text
     assert "Profit / run" in response.text
-    assert '<div class="figure">50 ISK</div>' in response.text
-    assert '<div class="figure">100 ISK</div>' in response.text
+    assert '<div class="value">50 ISK</div>' in response.text
+    assert '<div class="value">100 ISK</div>' in response.text
 
 
 SHIP_BP_ITEM_ID = 2001
@@ -528,7 +528,7 @@ MODULE_PRODUCT_TYPE_ID = 6201
 
 
 @respx.mock
-async def test_list_blueprints_groups_by_product_category(
+async def test_list_blueprints_tiles_all_cards_without_grouping(
     client: TestClient,
     test_settings: Settings,
     mongo_db: AsyncMongoMockClient,
@@ -552,13 +552,6 @@ async def test_list_blueprints_groups_by_product_category(
                 "published": True,
             },
         ]
-    )
-    await mongo_db.sde_types.update_one({"_id": SHIP_PRODUCT_TYPE_ID}, {"$set": {"category_id": 6}})
-    await mongo_db.sde_types.update_one(
-        {"_id": MODULE_PRODUCT_TYPE_ID}, {"$set": {"category_id": 7}}
-    )
-    await mongo_db.sde_categories.insert_many(
-        [{"_id": 6, "name": "Ship"}, {"_id": 7, "name": "Module"}]
     )
     await mongo_db.sde_blueprints.insert_many(
         [
@@ -616,12 +609,12 @@ async def test_list_blueprints_groups_by_product_category(
     assert response.status_code == 200
     assert "Widget Blueprint" in response.text
     assert "Gadget Blueprint" in response.text
-    # Alphabetical order: "Module" before "Ship".
-    module_heading_index = response.text.index("<h2>Module</h2>")
-    ship_heading_index = response.text.index("<h2>Ship</h2>")
-    gadget_index = response.text.index("Gadget Blueprint")
-    widget_index = response.text.index("Widget Blueprint")
-    assert module_heading_index < gadget_index < ship_heading_index < widget_index
+    # No more per-category <h2> grouping - a single item-grid holds every card.
+    assert "<h2>" not in response.text
+    assert response.text.count('class="item-grid"') == 1
+    # Card backgrounds use the *product's* icon, not the blueprint's own icon.
+    assert f"https://images.evetech.net/types/{SHIP_PRODUCT_TYPE_ID}/icon" in response.text
+    assert f"https://images.evetech.net/types/{MODULE_PRODUCT_TYPE_ID}/icon" in response.text
 
 
 @respx.mock

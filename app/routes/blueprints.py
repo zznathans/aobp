@@ -20,6 +20,8 @@ from app.web import (
     format_isk,
     gauge_cell_html,
     icon_url,
+    item_icon_url,
+    item_line_html,
     location_label_html,
     location_label_text,
     render_page,
@@ -27,11 +29,31 @@ from app.web import (
 
 router = APIRouter(prefix="/blueprints", tags=["blueprints"])
 
-_LIST_STYLE = "/static/blueprints-list.css"
-_DETAIL_STYLE = "/static/blueprints-detail.css"
+_LIST_STYLE = ["/static/card.css", "/static/blueprints-list.css"]
+_DETAIL_STYLE = ["/static/card.css", "/static/blueprints-detail.css"]
 
 
 _REACTIONS_ACTIVITY_ID = 11
+
+
+def _summary_stat(value: str, label: str) -> str:
+    return f"""
+      <div class="summary-stat">
+        <div class="value">{value}</div>
+        <div class="label">{escape(label)}</div>
+      </div>
+    """
+
+
+def _section(title: str, cards_html: str) -> str:
+    if not cards_html:
+        return ""
+    return f"""
+      <div class="section-box">
+        <h2>{escape(title)}</h2>
+        <div class="item-grid">{cards_html}</div>
+      </div>
+    """
 
 
 def _material_quantity_per_run(base_quantity: int, material_efficiency: int) -> int:
@@ -44,44 +66,14 @@ def _tech_level_label(is_reaction: bool, is_t2: bool) -> str:
     return "T2" if is_t2 else "T1"
 
 
-def _readiness_percentages(
-    materials: list[dict[str, int]],
-    material_efficiency: int,
-    on_site_totals: dict[int, int],
-    global_totals: dict[int, int],
-) -> tuple[float, float]:
-    if not materials:
-        return 100.0, 100.0
-
-    needed_total = 0
-    on_site_have_total = 0
-    global_have_total = 0
-    for material in materials:
-        type_id = material["type_id"]
-        needed = _material_quantity_per_run(material["quantity"], material_efficiency)
-        needed_total += needed
-        on_site_have_total += min(on_site_totals.get(type_id, 0), needed)
-        global_have_total += min(global_totals.get(type_id, 0), needed)
-
-    return (
-        100.0 * on_site_have_total / needed_total,
-        100.0 * global_have_total / needed_total,
-    )
-
-
 _FILTER_OPTIONS = ("original", "copy", "t2")
 _DEFAULT_FILTERS = frozenset({"original"})
-_SORT_COLUMNS = ("name", "me", "te", "onsite", "global")
+_SORT_COLUMNS = ("name", "me", "te")
 _SORT_LABELS = {
     "name": "Blueprint",
     "me": "ME",
     "te": "TE",
-    "onsite": "On-site",
-    "global": "All assets",
 }
-
-
-_OTHER_CATEGORY = "Other"
 
 
 @dataclass
@@ -92,10 +84,7 @@ class _Row:
     is_t2: bool
     me: int
     te: int
-    on_site_pct: float
-    global_pct: float
     location_id: int
-    category: str
     html: str
 
 
@@ -113,7 +102,7 @@ def _query_string(
     return urlencode(params)
 
 
-def _sort_header(
+def _sort_link(
     column: str,
     selected: frozenset[str],
     current_sort: str,
@@ -122,13 +111,15 @@ def _sort_header(
     search: str,
 ) -> str:
     label = _SORT_LABELS[column]
-    if column == current_sort:
+    active = column == current_sort
+    if active:
         next_dir = "desc" if current_dir == "asc" else "asc"
         label += " &#9650;" if current_dir == "asc" else " &#9660;"
     else:
         next_dir = "asc"
     href = escape(f"?{_query_string(selected, column, next_dir, location, search)}")
-    return f'<th><a href="{href}">{label}</a></th>'
+    css_class = ' class="active"' if active else ""
+    return f'<a href="{href}"{css_class}>{label}</a>'
 
 
 def _render_filters_form(
@@ -212,23 +203,11 @@ async def list_blueprints(
     type_docs = await sde.type_docs(
         db, redis, settings, {bp.type_id for bp in blueprints} | product_type_ids
     )
-    category_ids = {
-        cast(int, type_docs[product_type_id]["category_id"])
-        for product_type_id in product_type_ids
-        if type_docs.get(product_type_id, {}).get("category_id") is not None
-    }
-    category_docs = await sde.category_docs(db, redis, settings, category_ids)
 
     assets, corp_assets_included = await character_data.get_merged_assets(
         db, redis, settings, character
     )
     assets_by_item_id = {asset.item_id: asset for asset in assets}
-    global_totals: dict[int, int] = {}
-    assets_by_location: dict[int, dict[int, int]] = {}
-    for asset in assets:
-        global_totals[asset.type_id] = global_totals.get(asset.type_id, 0) + asset.quantity
-        location_totals = assets_by_location.setdefault(asset.location_id, {})
-        location_totals[asset.type_id] = location_totals.get(asset.type_id, 0) + asset.quantity
 
     resolved_location_by_item_id = {
         bp.item_id: _resolve_container_chain(bp.location_id, assets_by_item_id) for bp in blueprints
@@ -249,30 +228,7 @@ async def list_blueprints(
             sub += f" &middot; {bp.runs} runs"
 
         sde_doc = sde_by_type_id.get(bp.type_id)
-        if sde_doc is not None:
-            on_site_pct, global_pct = _readiness_percentages(
-                cast(list[dict[str, int]], sde_doc["materials"]),
-                bp.material_efficiency,
-                assets_by_location.get(bp.location_id, {}),
-                global_totals,
-            )
-            on_site_gauge = gauge_cell_html(on_site_pct)
-            global_gauge = gauge_cell_html(global_pct)
-        else:
-            on_site_pct = global_pct = -1.0
-            on_site_gauge = global_gauge = '<span class="empty">&mdash;</span>'
-
         product_type_id = sde_doc.get("product_type_id") if sde_doc is not None else None
-        product_category_id = (
-            type_docs.get(cast(int, product_type_id), {}).get("category_id")
-            if product_type_id is not None
-            else None
-        )
-        category = _OTHER_CATEGORY
-        if product_category_id is not None:
-            category_name = category_docs.get(cast(int, product_category_id), {}).get("name")
-            if category_name:
-                category = str(category_name)
 
         me_gauge = gauge_cell_html(
             100.0 * bp.material_efficiency / 10, f"{bp.material_efficiency}/10"
@@ -285,22 +241,23 @@ async def list_blueprints(
         )
 
         item_href = escape(f"/blueprints/{bp.item_id}")
-        bp_icon_url = escape(icon_url(bp.type_id, is_copy))
+        # Icon is the *output product*'s, not the blueprint's own icon.
+        bg_type_id = product_type_id if product_type_id is not None else bp.type_id
+        bg_icon_url = escape(item_icon_url(cast(int, bg_type_id)))
         row_html = f"""
-          <tr>
-            <td>
-              <a class="bp-link" href="{item_href}">
-                <img class="icon" src="{bp_icon_url}" alt="{name}"
+          <a class="item-card" href="{item_href}">
+            <div class="item-card-content">
+              <div class="item-title">
+                <img class="item-title-icon" src="{bg_icon_url}" alt=""
                   onerror="this.style.visibility='hidden'">
-                <div><div class="name">{name}</div><div class="sub">{sub}</div></div>
-              </a>
-            </td>
-            <td>{location_label}</td>
-            <td>{me_gauge}</td>
-            <td>{te_gauge}</td>
-            <td>{on_site_gauge}</td>
-            <td>{global_gauge}</td>
-          </tr>
+                {name}
+              </div>
+              {item_line_html("Status", sub)}
+              {item_line_html("Location", location_label)}
+              {item_line_html("ME", me_gauge)}
+              {item_line_html("TE", te_gauge)}
+            </div>
+          </a>
         """
         parsed_rows.append(
             _Row(
@@ -310,10 +267,7 @@ async def list_blueprints(
                 is_t2=bool(is_t2),
                 me=bp.material_efficiency,
                 te=bp.time_efficiency,
-                on_site_pct=on_site_pct,
-                global_pct=global_pct,
                 location_id=resolved_location_id,
-                category=category,
                 html=row_html,
             )
         )
@@ -342,46 +296,22 @@ async def list_blueprints(
         "name": lambda r: r.name.lower(),
         "me": lambda r: r.me,
         "te": lambda r: r.te,
-        "onsite": lambda r: r.on_site_pct,
-        "global": lambda r: r.global_pct,
     }
     visible_rows.sort(key=sort_keys[sort], reverse=(direction == "desc"))
 
-    headers = (
-        _sort_header("name", selected, sort, direction, location, search)
-        + "<th>Location</th>"
-        + "".join(
-            _sort_header(column, selected, sort, direction, location, search)
-            for column in _SORT_COLUMNS[1:]
-        )
+    sort_links = "Sort by: " + " &middot; ".join(
+        _sort_link(column, selected, sort, direction, location, search) for column in _SORT_COLUMNS
     )
+    sort_links_html = f'<div class="sort-links">{sort_links}</div>'
+
     if not visible_rows:
-        sections = f"""
-          <table class="bp-table">
-            <thead><tr>{headers}</tr></thead>
-            <tbody>
-              <tr><td colspan="6" class="empty">No blueprints match the current filters.</td></tr>
-            </tbody>
-          </table>
-        """
+        sections = '<p class="empty">No blueprints match the current filters.</p>'
     else:
-        rows_by_category: dict[str, list[_Row]] = {}
-        for row in visible_rows:
-            rows_by_category.setdefault(row.category, []).append(row)
-
-        category_names = sorted(
-            (name for name in rows_by_category if name != _OTHER_CATEGORY), key=str.lower
-        )
-        if _OTHER_CATEGORY in rows_by_category:
-            category_names.append(_OTHER_CATEGORY)
-
-        sections = "".join(f"""
-              <h2>{escape(category_name)}</h2>
-              <table class="bp-table">
-                <thead><tr>{headers}</tr></thead>
-                <tbody>{"".join(row.html for row in rows_by_category[category_name])}</tbody>
-              </table>
-            """ for category_name in category_names)
+        sections = f"""
+          <div class="item-grid">
+            {"".join(row.html for row in visible_rows)}
+          </div>
+        """
 
     corp_note = (
         '<p class="empty">Includes corporation blueprints and/or assets.</p>'
@@ -393,6 +323,7 @@ async def list_blueprints(
       {catalog_link}
       {corp_note}
       {filters_form}
+      {sort_links_html}
       {sections}
     </div>"""
     return HTMLResponse(render_page("Blueprints", body, _LIST_STYLE, character=character))
@@ -411,24 +342,24 @@ async def blueprint_catalog(
         if not docs:
             results_html = '<p class="empty">No blueprints match your search.</p>'
         else:
-            rows_html = "".join(f"""
-                  <tr>
-                    <td>
-                      <a class="bp-link" href="/blueprints/catalog/{doc['_id']}">
-                        <img class="icon" src="{escape(icon_url(cast(int, doc['_id'])))}"
-                          alt="{escape(str(doc['name']))}" onerror="this.style.visibility='hidden'">
-                        <div class="name">{escape(str(doc["name"]))}
-                          {" &middot; T2" if doc.get("tech_level") == 2 else ""}</div>
+            card_parts = []
+            for doc in docs:
+                bg_type_id = cast(int, doc.get("product_type_id") or doc["_id"])
+                bg_icon_url = escape(item_icon_url(bg_type_id))
+                card_parts.append(f"""
+                      <a class="item-card" href="/blueprints/catalog/{doc['_id']}">
+                        <div class="item-card-content">
+                          <div class="item-title">
+                            <img class="item-title-icon" src="{bg_icon_url}" alt=""
+                              onerror="this.style.visibility='hidden'">
+                            {escape(str(doc["name"]))}
+                          </div>
+                          {item_line_html("Tech level", "T2") if doc.get("tech_level") == 2 else ""}
+                        </div>
                       </a>
-                    </td>
-                  </tr>
-                """ for doc in docs)
-            results_html = f"""
-              <table class="bp-table">
-                <thead><tr><th>Blueprint</th></tr></thead>
-                <tbody>{rows_html}</tbody>
-              </table>
-            """
+                    """)
+            cards_html = "".join(card_parts)
+            results_html = f'<div class="item-grid">{cards_html}</div>'
     elif query:
         results_html = '<p class="empty">Keep typing - search needs at least 2 characters.</p>'
     else:
@@ -483,12 +414,7 @@ async def catalog_blueprint_detail(
         material["quantity"] * market_prices.unit_price(price_by_type_id.get(material["type_id"]))
         for material in materials
     )
-    price_figures = f"""
-      <div>
-        <div class="figure">{format_isk(cost_per_run)}</div>
-        <div class="label">Cost / run</div>
-      </div>
-    """
+    price_figures = _summary_stat(format_isk(cost_per_run), "Cost / run")
 
     product_name = ""
     if product_type_id is not None:
@@ -497,16 +423,9 @@ async def catalog_blueprint_detail(
         output_per_run = product_quantity * market_prices.unit_price(
             price_by_type_id.get(product_type_id)
         )
-        price_figures += f"""
-          <div>
-            <div class="figure">{format_isk(output_per_run)}</div>
-            <div class="label">Output / run</div>
-          </div>
-          <div>
-            <div class="figure">{format_isk(output_per_run - cost_per_run)}</div>
-            <div class="label">Profit / run</div>
-          </div>
-        """
+        price_figures += _summary_stat(format_isk(output_per_run), "Output / run") + _summary_stat(
+            format_isk(output_per_run - cost_per_run), "Profit / run"
+        )
 
     produced_text = (
         f"&middot; Produces {escape(product_name)} &times;{product_quantity}"
@@ -530,19 +449,21 @@ async def catalog_blueprint_detail(
     def _material_name(type_id: int) -> str:
         return str(material_docs.get(type_id, {}).get("name", f"Type {type_id}"))
 
-    rows = "".join(f"""
-          <tr>
-            <td>{escape(_material_name(material["type_id"]))}</td>
-            <td>{material["quantity"]}</td>
-          </tr>
+    materials_cards = "".join(f"""
+          <div class="item-card">
+            <img class="item-card-center-icon" src="{escape(item_icon_url(material["type_id"]))}"
+              alt="" aria-hidden="true" onerror="this.style.visibility='hidden'">
+            <div class="item-card-content">
+              <div class="item-title">{escape(_material_name(material["type_id"]))}</div>
+              {item_line_html("Quantity / run", str(material["quantity"]))}
+            </div>
+          </div>
         """ for material in materials)
+    materials_section = _section("Materials", materials_cards)
 
     body = f"""<div class="page">{header}
       <div class="summary">{price_figures}</div>
-      <table>
-        <thead><tr><th>Material</th><th>Quantity / run</th></tr></thead>
-        <tbody>{rows}</tbody>
-      </table>
+      {materials_section}
       <a class="btn btn-secondary back" href="/blueprints/catalog">Back to search</a>
     </div>"""
     return HTMLResponse(render_page(page_title, body, _DETAIL_STYLE, character=character))
@@ -617,26 +538,14 @@ async def blueprint_detail(
         * market_prices.unit_price(price_by_type_id.get(m["type_id"]))
         for m in materials
     )
-    price_figures = f"""
-      <div>
-        <div class="figure">{format_isk(cost_per_run)}</div>
-        <div class="label">Cost / run</div>
-      </div>
-    """
+    price_figures = _summary_stat(format_isk(cost_per_run), "Cost / run")
     if product_type_id is not None:
         output_per_run = product_quantity * market_prices.unit_price(
             price_by_type_id.get(product_type_id)
         )
-        price_figures += f"""
-          <div>
-            <div class="figure">{format_isk(output_per_run)}</div>
-            <div class="label">Output / run</div>
-          </div>
-          <div>
-            <div class="figure">{format_isk(output_per_run - cost_per_run)}</div>
-            <div class="label">Profit / run</div>
-          </div>
-        """
+        price_figures += _summary_stat(format_isk(output_per_run), "Output / run") + _summary_stat(
+            format_isk(output_per_run - cost_per_run), "Profit / run"
+        )
 
     header = f"""
       <div class="header">
@@ -662,7 +571,7 @@ async def blueprint_detail(
     material_type_ids = {m["type_id"] for m in materials}
     material_docs = await sde.type_docs(db, redis, settings, material_type_ids)
 
-    rows = []
+    material_cards = []
     on_site_buildable = math.inf
     global_buildable = math.inf
     for material in materials:
@@ -682,37 +591,32 @@ async def blueprint_detail(
         global_cell: str = str(global_have)
         if global_missing:
             global_cell = f'{global_have} <span class="short">(-{global_missing})</span>'
-        rows.append(f"""
-          <tr>
-            <td>{name}</td>
-            <td>{needed}</td>
-            <td>{on_site_cell}</td>
-            <td>{global_cell}</td>
-          </tr>
+        material_cards.append(f"""
+          <div class="item-card">
+            <img class="item-card-center-icon" src="{escape(item_icon_url(type_id))}"
+              alt="" aria-hidden="true" onerror="this.style.visibility='hidden'">
+            <div class="item-card-content">
+              <div class="item-title">{name}</div>
+              {item_line_html("Needed / run", str(needed))}
+              {item_line_html("On-site", on_site_cell)}
+              {item_line_html("All assets", global_cell)}
+            </div>
+          </div>
         """)
 
     if not materials:
         on_site_buildable = 0
         global_buildable = 0
 
+    materials_section = _section("Materials", "".join(material_cards))
+
     body = f"""<div class="page">{header}
       <div class="summary">
-        <div>
-          <div class="figure">{int(on_site_buildable)}</div>
-          <div class="label">Buildable on-site</div>
-        </div>
-        <div>
-          <div class="figure">{int(global_buildable)}</div>
-          <div class="label">Buildable (all assets)</div>
-        </div>
+        {_summary_stat(str(int(on_site_buildable)), "Buildable on-site")}
+        {_summary_stat(str(int(global_buildable)), "Buildable (all assets)")}
         {price_figures}
       </div>
-      <table>
-        <thead>
-          <tr><th>Material</th><th>Needed / run</th><th>On-site</th><th>All assets</th></tr>
-        </thead>
-        <tbody>{"".join(rows)}</tbody>
-      </table>
+      {materials_section}
       <a class="btn btn-secondary back" href="/blueprints">Back to blueprints</a>
     </div>"""
     return HTMLResponse(
