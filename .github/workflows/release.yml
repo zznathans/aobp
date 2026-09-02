@@ -11,9 +11,13 @@ name: Release
 #
 # This job also packages the chart a second time and pushes it straight to
 # the gh-pages branch as a traditional Helm chart repo (index.yaml + .tgz),
-# via @semantic-release/exec + @qiwi/semantic-release-gh-pages-plugin in
-# .releaserc.json - an additional install method alongside chart-publish.yml's
-# OCI/GHCR one, not a replacement for it. See docs/deploying.md.
+# via @semantic-release/exec's publishCmd calling
+# .github/scripts/publish-gh-pages-chart.sh - an additional install method
+# alongside chart-publish.yml's OCI/GHCR one, not a replacement for it. See
+# docs/deploying.md. (Not delegated to @qiwi/semantic-release-gh-pages-plugin:
+# its published npm version can't produce a push URL GitHub actually accepts
+# for a GitHub App token without also breaking @semantic-release/github's own
+# auth in the same run - see the script's own comment for detail.)
 on:
   push:
     branches: [main]
@@ -58,19 +62,10 @@ jobs:
         with:
           version: "3.17.0"
 
-      # @qiwi/semantic-release-gh-pages-plugin's verifyConditions step (which
-      # runs before @semantic-release/exec's prepareCmd populates this
-      # directory with the packaged chart) only checks that `src` already
-      # exists as a directory - it doesn't need contents yet, just needs to
-      # exist by the time semantic-release starts.
-      - name: Pre-create the gh-pages publish directory
-        run: mkdir -p gh-pages-dist
-
       - uses: cycjimmy/semantic-release-action@v6
         with:
           semantic_version: 24
           extra_plugins: |
             @semantic-release/exec@^6
-            @qiwi/semantic-release-gh-pages-plugin@^1
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}

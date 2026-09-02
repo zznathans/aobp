@@ -4,19 +4,12 @@
   "plugins": [
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
-    ["@semantic-release/exec", {
-      "prepareCmd": "helm package charts/eve-build --version ${nextRelease.version} --app-version ${nextRelease.version} -d gh-pages-dist && (curl -sf https://zznathans.github.io/eve-build/index.yaml -o /tmp/existing-index.yaml && helm repo index gh-pages-dist --url https://zznathans.github.io/eve-build/ --merge /tmp/existing-index.yaml || helm repo index gh-pages-dist --url https://zznathans.github.io/eve-build/)"
-    }],
     ["@semantic-release/github", {
       "successComment": false,
       "failTitle": false
     }],
-    ["@qiwi/semantic-release-gh-pages-plugin", {
-      "src": "gh-pages-dist",
-      "branch": "gh-pages",
-      "msg": "eve-build-chart ${nextRelease.version}",
-      "repositoryUrl": "https://github.com/zznathans/eve-build",
-      "pullTagsBranch": ""
+    ["@semantic-release/exec", {
+      "publishCmd": "bash .github/scripts/publish-gh-pages-chart.sh ${nextRelease.version}"
     }]
   ]
 }
