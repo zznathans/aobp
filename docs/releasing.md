@@ -20,16 +20,24 @@ with a [Conventional Commits](https://www.conventionalcommits.org/) message
      `helm install eve-build oci://ghcr.io/zznathans/eve-build-chart --version X.Y.Z`.
    - `release.yml` itself also packages the chart a second time and publishes
      it as a traditional Helm chart repo (`index.yaml` + `.tgz`) to the
-     `gh-pages` branch, via `@semantic-release/exec` (packages the chart and
-     merges it into the existing `index.yaml`) and
-     `@qiwi/semantic-release-gh-pages-plugin` (pushes the result) — both
-     configured in `.releaserc.json`, running as part of the semantic-release
-     pipeline itself rather than a separate downstream workflow, since that's
-     how these plugins work. This is an additional install method alongside
+     `gh-pages` branch — `@semantic-release/exec`'s `publishCmd` (configured
+     in `.releaserc.json`) runs `.github/scripts/publish-gh-pages-chart.sh`,
+     which clones/creates the `gh-pages` branch, packages the chart into it,
+     merges the new entry into the existing `index.yaml`, and pushes. This
+     runs as part of the semantic-release pipeline itself (after the GitHub
+     Release above already exists) rather than a separate downstream
+     workflow, since it needs `${nextRelease.version}` which only
+     semantic-release knows. This is an additional install method alongside
      the OCI one above, not a replacement — see [Deploying](deploying.md).
      GitHub Pages needs to be enabled once (Settings → Pages → Deploy from a
      branch → `gh-pages` / `(root)`) after the first release creates that
      branch.
+     (Deliberately not delegated to `@qiwi/semantic-release-gh-pages-plugin`:
+     its published npm version always builds a `https://<token>@github.com/...`
+     push URL, which GitHub rejects for any token type — there's no config
+     path around it that doesn't also require overriding `GITHUB_TOKEN` in a
+     way that would break `@semantic-release/github`'s own auth in the same
+     run.)
 
 `Chart.yaml`'s committed `version`/`appVersion` only matter for local
 `helm lint`/`helm unittest` — they're not what gets published. `eveBuild.imageTag`
