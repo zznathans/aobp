@@ -1,0 +1,100 @@
+suite: ingress
+templates:
+  - ingress.yaml
+tests:
+  - it: renders nothing when disabled (the default)
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders an Ingress when enabled
+    set:
+      eveBuild.ingress.enabled: true
+      eveBuild.ingress.host: build.eve.example.com
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isAPIVersion:
+          of: networking.k8s.io/v1
+      - isKind:
+          of: Ingress
+      - equal:
+          path: spec.rules[0].host
+          value: build.eve.example.com
+      - equal:
+          path: spec.rules[0].http.paths[0].backend.service.name
+          value: RELEASE-NAME
+      - equal:
+          path: spec.rules[0].http.paths[0].backend.service.port.number
+          value: 80
+      - equal:
+          path: spec.rules[0].http.paths[0].path
+          value: /
+      - equal:
+          path: spec.rules[0].http.paths[0].pathType
+          value: Prefix
+      - isNull:
+          path: spec.ingressClassName
+      - isNull:
+          path: spec.tls
+
+  - it: fails without a host when enabled
+    set:
+      eveBuild.ingress.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "eveBuild.ingress.host is required when eveBuild.ingress.enabled"
+
+  - it: uses the configured Service port
+    set:
+      eveBuild.ingress.enabled: true
+      eveBuild.ingress.host: build.eve.example.com
+      eveBuild.service.port: 8080
+    asserts:
+      - equal:
+          path: spec.rules[0].http.paths[0].backend.service.port.number
+          value: 8080
+
+  - it: sets the ingressClassName when configured
+    set:
+      eveBuild.ingress.enabled: true
+      eveBuild.ingress.host: build.eve.example.com
+      eveBuild.ingress.className: traefik
+    asserts:
+      - equal:
+          path: spec.ingressClassName
+          value: traefik
+
+  - it: applies extra annotations
+    set:
+      eveBuild.ingress.enabled: true
+      eveBuild.ingress.host: build.eve.example.com
+      eveBuild.ingress.annotations:
+        cert-manager.io/cluster-issuer: cloudflare-dns
+    asserts:
+      - equal:
+          path: metadata.annotations["cert-manager.io/cluster-issuer"]
+          value: cloudflare-dns
+
+  - it: renders TLS when enabled
+    set:
+      eveBuild.ingress.enabled: true
+      eveBuild.ingress.host: build.eve.example.com
+      eveBuild.ingress.tls.enabled: true
+      eveBuild.ingress.tls.secretName: build-eve-tls
+    asserts:
+      - equal:
+          path: spec.tls[0].hosts[0]
+          value: build.eve.example.com
+      - equal:
+          path: spec.tls[0].secretName
+          value: build-eve-tls
+
+  - it: fails when TLS is enabled without a secretName
+    set:
+      eveBuild.ingress.enabled: true
+      eveBuild.ingress.host: build.eve.example.com
+      eveBuild.ingress.tls.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "eveBuild.ingress.tls.secretName is required when eveBuild.ingress.tls.enabled"

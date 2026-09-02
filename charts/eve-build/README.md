@@ -3,8 +3,15 @@
 Helm chart for [`eve-build`](https://github.com/zznathans/eve-build).
 
 Deploys a FastAPI Deployment + Service, exposing `/` and `/health`. No
-chart-owned Ingress — the Service is meant to sit behind whatever
+Ingress by default — the Service is meant to sit behind whatever
 externally-managed ingress/traffic routing your cluster already uses.
+Optionally (`eveBuild.ingress.enabled`) the chart deploys its own Ingress
+instead, routing `eveBuild.ingress.host` to the Service - set
+`eveBuild.ingress.className` for a non-default IngressClass, and
+`eveBuild.ingress.tls.enabled` (with `eveBuild.ingress.tls.secretName`) to
+terminate TLS there, typically paired with a
+`cert-manager.io/cluster-issuer` annotation under
+`eveBuild.ingress.annotations` for automatic certificate issuance.
 
 Optionally (`mongodb.enabled`) also deploys a `MongoDBCommunity` custom
 resource — a MongoDB replica set. This requires the
@@ -76,6 +83,12 @@ table.
 | eveBuild.imagePullSecrets | list | `[]` | List of image pull secret names to attach to the ServiceAccount. Leave empty if the registry is public. |
 | eveBuild.imageRepository | string | `"ghcr.io/zznathans/eve-build"` | Container image registry and repository for the eve-build image. |
 | eveBuild.imageTag | string | `""` | Image tag to deploy. Empty by default: falls back to .Chart.AppVersion, which chart-publish.yml overrides to match the release a published chart was packaged from - so installing a published chart with no override deploys the matching image automatically. Only matters as a literal default for a raw checkout (falls back to Chart.yaml's committed appVersion) or local helm lint/unittest. |
+| eveBuild.ingress.annotations | object | `{}` | Extra annotations on the Ingress - e.g. cert-manager.io/cluster-issuer, to have cert-manager automatically issue the TLS certificate referenced by ingress.tls.secretName below. |
+| eveBuild.ingress.className | string | `""` | IngressClass to use (e.g. "traefik"). Empty uses the cluster's default IngressClass. |
+| eveBuild.ingress.enabled | bool | `false` | Create an Ingress routing to this app's Service. Off by default - see the chart README for why (the Service is meant to sit behind whatever externally-managed ingress/traffic routing your cluster already uses; this is an opt-in alternative for clusters that route via a Kubernetes Ingress controller instead). |
+| eveBuild.ingress.host | string | `""` | Hostname to route to this app. Required when enabled. |
+| eveBuild.ingress.tls.enabled | bool | `false` | Terminate TLS on the Ingress. Typically paired with a cert-manager.io/cluster-issuer annotation above so the certificate is issued automatically. |
+| eveBuild.ingress.tls.secretName | string | `""` | Name of the Secret holding the TLS certificate. When using cert-manager, this is the Secret it creates/manages - pick any name. |
 | eveBuild.marketPrices.existingSecret | string | `""` | Name of an existing Secret holding the refresh API key, used instead of `refreshApiKey` when set. |
 | eveBuild.marketPrices.existingSecretKey | string | `"apiKey"` | Key within `existingSecret` holding the refresh API key. |
 | eveBuild.marketPrices.refreshApiKey | string | `""` | Shared secret the `/market-prices/refresh` endpoint requires via the `X-Api-Key` header, used by the CronJob below to trigger a poll. Required unless `existingSecret` is set - generate one with `openssl rand -hex 32`. |
