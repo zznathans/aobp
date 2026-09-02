@@ -1,0 +1,9 @@
+{
+  "name": "eve-build",
+  "private": true,
+  "description": "Placeholder for tooling that expects a root package.json (semantic-release plugins) - this is a pure Python app with no npm dependencies of its own.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zznathans/eve-build.git"
+  }
+}
