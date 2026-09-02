@@ -58,6 +58,14 @@ jobs:
         with:
           version: "3.17.0"
 
+      # @qiwi/semantic-release-gh-pages-plugin's verifyConditions step (which
+      # runs before @semantic-release/exec's prepareCmd populates this
+      # directory with the packaged chart) only checks that `src` already
+      # exists as a directory - it doesn't need contents yet, just needs to
+      # exist by the time semantic-release starts.
+      - name: Pre-create the gh-pages publish directory
+        run: mkdir -p gh-pages-dist
+
       - uses: cycjimmy/semantic-release-action@v6
         with:
           semantic_version: 24
