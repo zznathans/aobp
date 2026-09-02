@@ -3,8 +3,15 @@
 Helm chart for [`eve-build`](https://github.com/zznathans/eve-build).
 
 Deploys a FastAPI Deployment + Service, exposing `/` and `/health`. No
-chart-owned Ingress — the Service is meant to sit behind whatever
+Ingress by default — the Service is meant to sit behind whatever
 externally-managed ingress/traffic routing your cluster already uses.
+Optionally (`eveBuild.ingress.enabled`) the chart deploys its own Ingress
+instead, routing `eveBuild.ingress.host` to the Service - set
+`eveBuild.ingress.className` for a non-default IngressClass, and
+`eveBuild.ingress.tls.enabled` (with `eveBuild.ingress.tls.secretName`) to
+terminate TLS there, typically paired with a
+`cert-manager.io/cluster-issuer` annotation under
+`eveBuild.ingress.annotations` for automatic certificate issuance.
 
 Optionally (`mongodb.enabled`) also deploys a `MongoDBCommunity` custom
 resource — a MongoDB replica set. This requires the
