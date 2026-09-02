@@ -1,17 +1,1 @@
 .page { max-width: 40rem; margin: 0 auto; padding: 2rem 1.5rem; }
-.header { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; }
-.header .icon { width: 48px; height: 48px; border-radius: 8px; }
-.header .name { font-size: 1.3rem; font-weight: 600; }
-.header .meta { color: #9aa4b2; font-size: 0.85rem; margin-top: 0.25rem; }
-h2 { font-size: 1.05rem; margin: 1.5rem 0 0.75rem; }
-.summary {
-  display: flex; gap: 1.5rem; flex-wrap: wrap;
-  background: #1a1d24; border: 1px solid #2a2e37; border-radius: 10px; padding: 1rem;
-}
-.summary .figure { font-size: 1.4rem; font-weight: 700; }
-.summary .label { color: #9aa4b2; font-size: 0.8rem; }
-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-th, td { text-align: right; padding: 0.5rem; border-bottom: 1px solid #2a2e37; }
-th:first-child, td:first-child { text-align: left; }
-.empty { color: #9aa4b2; }
-.back { display: inline-block; margin-top: 1.5rem; }

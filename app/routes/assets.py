@@ -19,6 +19,7 @@ from app.web import (
     format_isk,
     format_number,
     item_icon_url,
+    item_line_html,
     location_label_html,
     location_label_text,
     render_page,
@@ -26,8 +27,8 @@ from app.web import (
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
-_LIST_STYLE = "/static/assets-list.css"
-_DETAIL_STYLE = "/static/assets-detail.css"
+_LIST_STYLE = ["/static/card.css", "/static/assets-list.css"]
+_DETAIL_STYLE = ["/static/card.css", "/static/assets-detail.css"]
 
 # SDE group_id for the eight raw refined minerals (Tritanium, Pyerite, Mexallon, ...).
 _MINERAL_GROUP_ID = 18
@@ -79,17 +80,28 @@ _CATEGORIES: dict[str, Callable[[dict[str, object]], bool]] = {
     "Decrypters": _group_matcher(_DECRYPTOR_GROUP_ID),
 }
 
-# Each entry is one page column, top to bottom - Ore tends to run long on its own, so
-# Datacores and Decrypters (both usually short) stack together in a shared column instead
-# of each claiming a full-width column of their own.
-_CATEGORY_COLUMNS: list[list[str]] = [
-    ["Minerals", "Planetary Materials"],
-    ["Compressed Ore", "Ore"],
-    ["Datacores", "Decrypters"],
-]
-
 # Categories that only render when the character actually owns something in them.
 _HIDE_IF_EMPTY = frozenset({"Compressed Ore"})
+
+
+def _summary_stat(value: str, label: str) -> str:
+    return f"""
+      <div class="summary-stat">
+        <div class="value">{value}</div>
+        <div class="label">{escape(label)}</div>
+      </div>
+    """
+
+
+def _section(title: str, cards_html: str) -> str:
+    if not cards_html:
+        return ""
+    return f"""
+      <div class="section-box">
+        <h2>{escape(title)}</h2>
+        <div class="item-grid">{cards_html}</div>
+      </div>
+    """
 
 
 @dataclass
@@ -137,19 +149,21 @@ def _category_rows(
         icon = escape(item_icon_url(type_id))
         item_href = escape(f"/assets/{type_id}")
         row_html = f"""
-          <tr>
-            <td>
-              <a class="asset-item" href="{item_href}">
-                <img class="icon" src="{icon}" alt="{name}"
+          <a class="item-card" href="{item_href}">
+            <img class="item-card-center-icon" src="{icon}" alt="" aria-hidden="true"
+              onerror="this.style.visibility='hidden'">
+            <div class="item-card-content">
+              <div class="item-title">
+                <img class="item-title-icon" src="{icon}" alt=""
                   onerror="this.style.visibility='hidden'">
-                <span class="name">{name}</span>
-              </a>
-            </td>
-            <td class="num">{format_number(quantity)}</td>
-            <td class="num">{format_number(row_volume)}</td>
-            <td class="num"><a href="{item_href}">{location_count}</a></td>
-            <td class="num">{format_isk(row_value)}</td>
-          </tr>
+                {name}
+              </div>
+              {item_line_html("Quantity", format_number(quantity))}
+              {item_line_html("Volume", f"{format_number(row_volume)} m3")}
+              {item_line_html("Locations", str(location_count))}
+              {item_line_html("Est. value", format_isk(row_value))}
+            </div>
+          </a>
         """
         rows.append(
             _CategoryRow(
@@ -163,28 +177,6 @@ def _category_rows(
 
     rows.sort(key=lambda row: row.volume, reverse=True)
     return rows
-
-
-def _render_category_table(title: str, rows: list[_CategoryRow]) -> str:
-    rows_html = "".join(row.html for row in rows) or (
-        '<tr><td colspan="5" class="empty">None found.</td></tr>'
-    )
-    return f"""
-      <div class="category">
-        <h2>{escape(title)}</h2>
-        <div class="table-scroll">
-          <table class="asset-table">
-            <thead>
-              <tr>
-                <th>Item</th><th class="num">Quantity</th><th class="num">Volume (m3)</th>
-                <th class="num">Locations</th><th class="num">Est. value</th>
-              </tr>
-            </thead>
-            <tbody>{rows_html}</tbody>
-          </table>
-        </div>
-      </div>
-    """
 
 
 @router.get("", response_class=HTMLResponse)
@@ -228,50 +220,37 @@ async def list_assets(
     corp_note = '<p class="empty">Includes corporation assets.</p>' if corp_included else ""
     stats = f"""
       {corp_note}
-      <div class="stat-grid">
-        <div class="stat-card">
-          <div class="figure">{format_number(total_quantity)}</div>
-          <div class="label">Total items</div>
-        </div>
-        <div class="stat-card">
-          <div class="figure">{total_locations}</div>
-          <div class="label">Locations</div>
-        </div>
-        <div class="stat-card">
-          <div class="figure">{format_number(total_volume)} m3</div>
-          <div class="label">Total volume</div>
-        </div>
-        <div class="stat-card">
-          <div class="figure">{format_isk(total_value)}</div>
-          <div class="label">Est. total value</div>
-        </div>
+      <div class="summary">
+        {_summary_stat(format_number(total_quantity), "Total items")}
+        {_summary_stat(str(total_locations), "Locations")}
+        {_summary_stat(f"{format_number(total_volume)} m3", "Total volume")}
+        {_summary_stat(format_isk(total_value), "Est. total value")}
       </div>
     """
 
-    def _table_for(title: str) -> str:
-        rows = _category_rows(
-            assets, resolved_location_by_item_id, type_docs, price_by_type_id, _CATEGORIES[title]
+    cards_by_title = {
+        title: "".join(
+            row.html
+            for row in _category_rows(
+                assets,
+                resolved_location_by_item_id,
+                type_docs,
+                price_by_type_id,
+                _CATEGORIES[title],
+            )
         )
-        if not rows and title in _HIDE_IF_EMPTY:
-            return ""
-        return _render_category_table(title, rows)
-
-    category_columns_html = "".join(
-        f'<div class="category-column">'
-        f'{"".join(_table_for(title) for title in column_titles)}'
-        f"</div>"
-        for column_titles in _CATEGORY_COLUMNS
+        for title in _CATEGORIES
+    }
+    sections_html = "".join(
+        _section(title, cards_html or '<p class="empty">None found.</p>')
+        for title, cards_html in cards_by_title.items()
+        if cards_html or title not in _HIDE_IF_EMPTY
     )
 
-    categories_columns = f"repeat({len(_CATEGORY_COLUMNS)}, minmax(0, 1fr))"
     body = f"""<div class="page">
       <h1>Assets</h1>
       {stats}
-    </div>
-    <div class="categories-section">
-      <div class="categories" style="grid-template-columns: {categories_columns};">
-        {category_columns_html}
-      </div>
+      <div class="section-grid">{sections_html}</div>
     </div>"""
     return HTMLResponse(render_page("Assets", body, _LIST_STYLE, character=character))
 
@@ -330,57 +309,36 @@ async def item_detail(
     market_section = f"""
       <h2>Market data</h2>
       <div class="summary">
-        <div>
-          <div class="figure">{format_isk(average_price)}</div>
-          <div class="label">Average price</div>
-        </div>
-        <div>
-          <div class="figure">{format_isk(adjusted_price)}</div>
-          <div class="label">Adjusted price</div>
-        </div>
+        {_summary_stat(format_isk(average_price), "Average price")}
+        {_summary_stat(format_isk(adjusted_price), "Adjusted price")}
       </div>
     """
 
     owned_section = f"""
       <h2>What you own</h2>
       <div class="summary">
-        <div>
-          <div class="figure">{format_number(total_quantity)}</div>
-          <div class="label">Total quantity</div>
-        </div>
-        <div>
-          <div class="figure">{format_number(total_volume)} m3</div>
-          <div class="label">Total volume</div>
-        </div>
-        <div>
-          <div class="figure">{format_isk(total_value)}</div>
-          <div class="label">Est. total value</div>
-        </div>
+        {_summary_stat(format_number(total_quantity), "Total quantity")}
+        {_summary_stat(f"{format_number(total_volume)} m3", "Total volume")}
+        {_summary_stat(format_isk(total_value), "Est. total value")}
       </div>
     """
 
-    rows_html = "".join(
+    location_cards = "".join(
         f"""
-          <tr>
-            <td>
-              <a href="{escape(f"/assets/locations/{location_id}")}">
-                {location_label_html(location_id, location_info.get(location_id))}
-              </a>
-            </td>
-            <td>{format_number(quantity)}</td>
-          </tr>
+          <a class="item-card" href="{escape(f"/assets/locations/{location_id}")}">
+            <div class="item-card-content">
+              <div class="item-title">
+                <span>{location_label_html(location_id, location_info.get(location_id))}</span>
+              </div>
+              {item_line_html("Quantity", format_number(quantity))}
+            </div>
+          </a>
         """
         for location_id, quantity in sorted(
             quantity_by_location.items(), key=lambda item: item[1], reverse=True
         )
     )
-    locations_section = f"""
-      <h2>Locations</h2>
-      <table>
-        <thead><tr><th>Location</th><th>Quantity</th></tr></thead>
-        <tbody>{rows_html}</tbody>
-      </table>
-    """
+    locations_section = _section("Locations", location_cards)
 
     body = f"""<div class="page">{header}
       {market_section}
@@ -447,58 +405,40 @@ async def location_detail(
             (
                 row_volume,
                 f"""
-                  <tr>
-                    <td>
-                      <a class="asset-item" href="{item_href}">
-                        <img class="icon" src="{icon}" alt="{name}"
+                  <a class="item-card" href="{item_href}">
+                    <img class="item-card-center-icon" src="{icon}" alt="" aria-hidden="true"
+                      onerror="this.style.visibility='hidden'">
+                    <div class="item-card-content">
+                      <div class="item-title">
+                        <img class="item-title-icon" src="{icon}" alt=""
                           onerror="this.style.visibility='hidden'">
-                        <span class="name">{name}</span>
-                      </a>
-                    </td>
-                    <td class="num">{format_number(quantity)}</td>
-                    <td class="num">{format_number(row_volume)}</td>
-                    <td class="num">{format_isk(row_value)}</td>
-                  </tr>
+                        {name}
+                      </div>
+                      {item_line_html("Quantity", format_number(quantity))}
+                      {item_line_html("Volume", f"{format_number(row_volume)} m3")}
+                      {item_line_html("Est. value", format_isk(row_value))}
+                    </div>
+                  </a>
                 """,
             )
         )
 
     rows.sort(key=lambda row: row[0], reverse=True)
-    rows_html = "".join(html for _, html in rows)
+    cards_html = "".join(html for _, html in rows)
 
     stats = f"""
-      <div class="stat-grid">
-        <div class="stat-card">
-          <div class="figure">{format_number(total_quantity)}</div>
-          <div class="label">Total items</div>
-        </div>
-        <div class="stat-card">
-          <div class="figure">{len(quantity_by_type)}</div>
-          <div class="label">Distinct items</div>
-        </div>
-        <div class="stat-card">
-          <div class="figure">{format_number(total_volume)} m3</div>
-          <div class="label">Total volume</div>
-        </div>
-        <div class="stat-card">
-          <div class="figure">{format_isk(total_value)}</div>
-          <div class="label">Est. total value</div>
-        </div>
+      <div class="summary">
+        {_summary_stat(format_number(total_quantity), "Total items")}
+        {_summary_stat(str(len(quantity_by_type)), "Distinct items")}
+        {_summary_stat(f"{format_number(total_volume)} m3", "Total volume")}
+        {_summary_stat(format_isk(total_value), "Est. total value")}
       </div>
     """
 
     body = f"""<div class="page">
       <h1>{location_heading}</h1>
       {stats}
-      <table class="asset-table">
-        <thead>
-          <tr>
-            <th>Item</th><th class="num">Quantity</th><th class="num">Volume (m3)</th>
-            <th class="num">Est. value</th>
-          </tr>
-        </thead>
-        <tbody>{rows_html}</tbody>
-      </table>
+      <div class="item-grid">{cards_html}</div>
       <a class="btn btn-secondary back" href="/assets">Back to assets</a>
     </div>"""
     return HTMLResponse(

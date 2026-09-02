@@ -105,6 +105,16 @@ def location_label_text(location_id: int, info: LocationInfo | None) -> str:
     return f"{label} ({_rounded_security_status(info.security_status):.1f})"
 
 
+def item_line_html(label: str, value: str) -> str:
+    """One label/value row inside a `.item-card` (see card.css) - `label` is escaped,
+    `value` is raw HTML (callers pass already-escaped/pre-rendered content, e.g. a
+    gauge widget or another escaped string)."""
+    return (
+        f'<div class="item-line"><span>{escape(label)}</span>'
+        f'<span class="item-value">{value}</span></div>'
+    )
+
+
 def humanize_relative_time(target: datetime) -> str:
     seconds = (target - datetime.now(UTC)).total_seconds()
     if seconds <= 0:
