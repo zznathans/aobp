@@ -15,7 +15,8 @@
       "src": "gh-pages-dist",
       "branch": "gh-pages",
       "msg": "eve-build-chart ${nextRelease.version}",
-      "repositoryUrl": "https://github.com/zznathans/eve-build"
+      "repositoryUrl": "https://github.com/zznathans/eve-build",
+      "pullTagsBranch": ""
     }]
   ]
 }
