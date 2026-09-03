@@ -308,3 +308,19 @@ redis:
       # -- Extra labels on the ServiceMonitor (e.g. for a Prometheus
       # instance's serviceMonitorSelector).
       labels: {}
+
+rabbitmq:
+  # -- Enable RabbitMQ connectivity for the app (sets RABBITMQ_ENABLED and
+  # wires up RABBITMQ_URL below). This chart does not deploy RabbitMQ itself -
+  # point `url` (or `existingSecret`) at an external/managed RabbitMQ
+  # instance. Leave disabled if the app has no messaging use yet.
+  enabled: false
+
+  # -- AMQP connection URL for the app to use when `existingSecret` isn't
+  # set - e.g. an external/managed RabbitMQ instance.
+  url: "amqp://guest:guest@localhost:5672/"
+  # -- Name of an existing Secret holding the AMQP connection URL, used
+  # instead of `url` when set - e.g. via External Secrets.
+  existingSecret: ""
+  # -- Key within `existingSecret` holding the connection URL.
+  existingSecretKey: "url"

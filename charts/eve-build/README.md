@@ -42,6 +42,12 @@ runs a `redis_exporter` sidecar in the Redis pod, exposing Prometheus-compatible
 metrics; `redis.exporter.serviceMonitor.enabled` deploys a `ServiceMonitor` for
 it, same as the app's own (requires the Prometheus Operator CRDs).
 
+Optionally (`rabbitmq.enabled`) the app connects to a RabbitMQ instance —
+this chart doesn't deploy RabbitMQ itself, only wires the connection up:
+point `rabbitmq.url` at an external/managed instance, or reference a Secret
+via `rabbitmq.existingSecret` holding the AMQP URL. Leave `rabbitmq.enabled`
+false (the default) if the app has no messaging use configured yet.
+
 Optionally (`eveBuild.metrics.enabled`) the app exposes Prometheus-compatible
 metrics at `GET /metrics`. Optionally (`eveBuild.metrics.serviceMonitor.enabled`)
 also deploys a `ServiceMonitor` so a Prometheus Operator in the cluster scrapes it
@@ -130,6 +136,10 @@ table.
 | mongodb.uri | string | `"mongodb://localhost:27017"` | Plain MongoDB connection string for the app to use when `enabled` is false and `existingSecret` isn't set - e.g. an external/managed MongoDB instance outside the cluster. Ignored when `enabled` is true (the in-cluster MongoDBCommunity's own connection string is used instead). |
 | mongodb.username | string | `"eve-build"` | Database user the operator creates. |
 | mongodb.version | string | `"7.0.14"` | MongoDB server version to run. |
+| rabbitmq.enabled | bool | `false` | Enable RabbitMQ connectivity for the app (sets RABBITMQ_ENABLED and wires up RABBITMQ_URL below). This chart does not deploy RabbitMQ itself - point `url` (or `existingSecret`) at an external/managed RabbitMQ instance. Leave disabled if the app has no messaging use yet. |
+| rabbitmq.existingSecret | string | `""` | Name of an existing Secret holding the AMQP connection URL, used instead of `url` when set - e.g. via External Secrets. |
+| rabbitmq.existingSecretKey | string | `"url"` | Key within `existingSecret` holding the connection URL. |
+| rabbitmq.url | string | `"amqp://guest:guest@localhost:5672/"` | AMQP connection URL for the app to use when `existingSecret` isn't set - e.g. an external/managed RabbitMQ instance. |
 | redis.cacheTtlSeconds | int | `86400` | How long cached SDE/location lookups are kept, in seconds. Only relevant when Redis is enabled (bundled or external). |
 | redis.enabled | bool | `false` | Deploy a Redis instance for this release. The app uses it as an optional read-through cache for reference data (SDE type/blueprint lookups, resolved location names) to cut down on MongoDB reads - it's not a hard dependency, the app falls back to querying MongoDB directly if Redis is disabled or unreachable. |
 | redis.exporter.enabled | bool | `false` | Deploy a redis_exporter sidecar alongside the bundled Redis instance, exposing Prometheus-compatible metrics at :9121/metrics. Only applies when `redis.enabled` is true (bundled Redis) - there's nothing to sidecar onto for an external Redis. |

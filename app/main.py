@@ -12,6 +12,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import get_settings
 from app.db.mongo import create_mongo_client
+from app.db.rabbitmq import create_rabbitmq_connection
 from app.db.redis import create_redis_client
 from app.migrations.runner import run_migrations
 from app.routes import (
@@ -48,6 +49,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     else:
         logger.info("Redis disabled, skipping cache client")
 
+    app.state.rabbitmq = await create_rabbitmq_connection(settings)
+    if app.state.rabbitmq is not None:
+        logger.info("RabbitMQ connection established")
+    else:
+        logger.info("RabbitMQ disabled, skipping connection")
+
     if settings.run_migrations_on_startup:
         logger.info("Running database migrations")
         await run_migrations(app.state.mongo_client[settings.mongodb_database], settings)
@@ -80,6 +87,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.mongo_client.close()
         if app.state.redis is not None:
             await app.state.redis.aclose()
+        if app.state.rabbitmq is not None:
+            await app.state.rabbitmq.close()
         logger.info("Shutdown complete")
 
 

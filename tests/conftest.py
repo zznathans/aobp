@@ -10,10 +10,23 @@ from mongomock_motor import AsyncMongoMockClient
 
 from app.core.config import Settings, get_settings
 from app.db.mongo import get_database
+from app.db.rabbitmq import get_rabbitmq
 from app.db.redis import get_redis
 from app.main import app
 
 TEST_KEY_ID = "test-key-1"
+
+
+class FakeRabbitMQConnection:
+    """Minimal stand-in for aio_pika's AbstractRobustConnection, sufficient for
+    dependency-override purposes until there's real publisher/consumer code to
+    exercise a deeper fake against."""
+
+    def __init__(self) -> None:
+        self.closed = False
+
+    async def close(self) -> None:
+        self.closed = True
 
 
 @pytest.fixture
@@ -48,6 +61,11 @@ def fake_redis() -> FakeRedis:
 
 
 @pytest.fixture
+def fake_rabbitmq() -> FakeRabbitMQConnection:
+    return FakeRabbitMQConnection()
+
+
+@pytest.fixture
 def test_settings() -> Settings:
     return Settings(
         eve_sso_client_id="test-client-id",
@@ -64,11 +82,13 @@ def client(
     mongo_db: object, test_settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> Iterator[TestClient]:
     # `lifespan` calls get_settings() directly (not via Depends), so dependency_overrides
-    # can't reach it — disable the startup migration and Redis via env vars instead, since
-    # they'd otherwise hit the real local MongoDB/Redis (e.g. if REDIS_ENABLED=true in a
-    # developer's .env, every test would silently read/write the real Redis instance).
+    # can't reach it — disable the startup migration and Redis/RabbitMQ via env vars instead,
+    # since they'd otherwise hit the real local MongoDB/Redis/RabbitMQ (e.g. if
+    # REDIS_ENABLED=true in a developer's .env, every test would silently read/write the real
+    # Redis instance).
     monkeypatch.setenv("RUN_MIGRATIONS_ON_STARTUP", "false")
     monkeypatch.setenv("REDIS_ENABLED", "false")
+    monkeypatch.setenv("RABBITMQ_ENABLED", "false")
     get_settings.cache_clear()
     app.dependency_overrides[get_database] = lambda: mongo_db
     app.dependency_overrides[get_settings] = lambda: test_settings
@@ -81,6 +101,12 @@ def client(
 @pytest.fixture
 def client_with_redis(client: TestClient, fake_redis: FakeRedis) -> TestClient:
     app.dependency_overrides[get_redis] = lambda: fake_redis
+    return client
+
+
+@pytest.fixture
+def client_with_rabbitmq(client: TestClient, fake_rabbitmq: FakeRabbitMQConnection) -> TestClient:
+    app.dependency_overrides[get_rabbitmq] = lambda: fake_rabbitmq
     return client
 
 
