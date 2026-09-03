@@ -82,6 +82,20 @@ spec:
             - name: REDIS_CACHE_TTL_SECONDS
               value: {{ .Values.redis.cacheTtlSeconds | int | quote }}
             {{- end }}
+            - name: RABBITMQ_ENABLED
+              value: {{ .Values.rabbitmq.enabled | quote }}
+            {{- if .Values.rabbitmq.enabled }}
+            {{- if .Values.rabbitmq.existingSecret }}
+            - name: RABBITMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.rabbitmq.existingSecret }}
+                  key: {{ .Values.rabbitmq.existingSecretKey }}
+            {{- else }}
+            - name: RABBITMQ_URL
+              value: {{ .Values.rabbitmq.url | quote }}
+            {{- end }}
+            {{- end }}
             - name: METRICS_ENABLED
               value: {{ .Values.eveBuild.metrics.enabled | quote }}
             - name: EVE_SSO_CLIENT_ID

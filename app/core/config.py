@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     redis_cache_ttl_seconds: int = 60 * 60 * 24
 
+    rabbitmq_enabled: bool = False
+    rabbitmq_url: str = "amqp://guest:guest@localhost:5672/"
+
     metrics_enabled: bool = False
     metrics_db_gauges_enabled: bool = True
     metrics_gauge_refresh_seconds: int = 300

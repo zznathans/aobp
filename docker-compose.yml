@@ -8,12 +8,15 @@ services:
       - MONGODB_URI=mongodb://mongo:27017
       - REDIS_ENABLED=true
       - REDIS_URL=redis://redis:6379/0
+      - RABBITMQ_ENABLED=true
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
     env_file:
       - path: .env
         required: false
     depends_on:
       - mongo
       - redis
+      - rabbitmq
     restart: unless-stopped
 
   mongo:
@@ -28,6 +31,13 @@ services:
     image: redis:7.4-alpine
     ports:
       - "6379:6379"
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:4.0-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
     restart: unless-stopped
 
 volumes:
