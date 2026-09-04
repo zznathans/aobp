@@ -105,6 +105,26 @@ def location_label_text(location_id: int, info: LocationInfo | None) -> str:
     return f"{label} ({_rounded_security_status(info.security_status):.1f})"
 
 
+def summary_stat_html(value: str, label: str) -> str:
+    return f"""
+      <div class="summary-stat">
+        <div class="value">{value}</div>
+        <div class="label">{escape(label)}</div>
+      </div>
+    """
+
+
+def section_html(title: str, cards_html: str) -> str:
+    if not cards_html:
+        return ""
+    return f"""
+      <div class="section-box">
+        <h2>{escape(title)}</h2>
+        <div class="item-grid">{cards_html}</div>
+      </div>
+    """
+
+
 def item_line_html(label: str, value: str) -> str:
     """One label/value row inside a `.item-card` (see card.css) - `label` is escaped,
     `value` is raw HTML (callers pass already-escaped/pre-rendered content, e.g. a
@@ -159,6 +179,7 @@ def render_nav(character: CharacterDocument | None) -> str:
         <div class="nav-links">
           <a href="/">Home</a>
           <a href="/blueprints">Blueprints</a>
+          <a href="/plans">Plans</a>
           <a href="/assets">Assets</a>
           <a href="/pi">Planets</a>
           <a href="/planetary">PI Schematics</a>
