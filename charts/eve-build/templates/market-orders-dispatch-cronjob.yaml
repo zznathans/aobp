@@ -4,6 +4,8 @@ kind: CronJob
 metadata:
   name: {{ .Release.Name }}-market-orders-dispatch
   namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   schedule: {{ .Values.eveBuild.marketOrders.dispatchSchedule | quote }}
   jobTemplate:
