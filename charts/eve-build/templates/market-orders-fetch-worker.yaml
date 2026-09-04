@@ -5,7 +5,9 @@ metadata:
   name: {{ .Release.Name }}-market-orders-fetch-worker
   namespace: {{ .Release.Namespace }}
 spec:
+  {{- if not .Values.keda.enabled }}
   replicas: {{ .Values.eveBuild.marketOrders.fetchWorker.replicas }}
+  {{- end }}
   selector:
     matchLabels:
       app: {{ .Release.Name }}-market-orders-fetch-worker
