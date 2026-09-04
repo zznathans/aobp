@@ -116,6 +116,38 @@ eveBuild:
     # -- Cron schedule the CronJob uses to trigger a market price refresh.
     schedule: "0 * * * *"
 
+  marketOrders:
+    # -- Only rendered when rabbitmq.enabled is true - the dispatch CronJob and fetch/write
+    # worker Deployments below all publish/consume via RabbitMQ, so there's nothing to deploy
+    # without it. See docs for the full market-orders scrape pipeline.
+    #
+    # Cron schedule the dispatch CronJob uses to enqueue a scrape job for every public region.
+    dispatchSchedule: "0 * * * *"
+    fetchWorker:
+      # -- Number of fetch-worker replicas. Each consumes region scrape jobs from RabbitMQ and
+      # pulls that region's market orders from ESI - scale up to parallelize across regions.
+      replicas: 3
+      # -- Resource requests and limits for the fetch-worker container.
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 250m
+          memory: 128Mi
+    writeWorker:
+      # -- Number of write-worker replicas. Each consumes order batches from RabbitMQ and
+      # persists them to MongoDB.
+      replicas: 1
+      # -- Resource requests and limits for the write-worker container.
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 250m
+          memory: 256Mi
+
   # -- Directory the bundled EVE SDE data is read from at migration time.
   # Only override this if you're mounting a custom SDE dataset.
   sdeDataDir: "app/data/sde"

@@ -1,0 +1,45 @@
+suite: market-orders-fetch-worker
+templates:
+  - market-orders-fetch-worker.yaml
+set:
+  eveBuild.marketPrices.refreshApiKey: my-api-key
+  eveBuild.session.secretKey: my-session-key
+tests:
+  - it: renders nothing when rabbitmq is disabled
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders a Deployment when rabbitmq is enabled
+    set:
+      rabbitmq.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Deployment
+
+  - it: defaults to 3 replicas
+    set:
+      rabbitmq.enabled: true
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+
+  - it: uses the configured replica count
+    set:
+      rabbitmq.enabled: true
+      eveBuild.marketOrders.fetchWorker.replicas: 5
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 5
+
+  - it: runs the fetch worker script via the app image
+    set:
+      rabbitmq.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].command
+          value: ["python", "-m", "app.scripts.market_orders_fetch_worker"]

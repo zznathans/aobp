@@ -1,0 +1,25 @@
+{{- if .Values.rabbitmq.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-market-orders-dispatch
+  namespace: {{ .Release.Namespace }}
+spec:
+  schedule: {{ .Values.eveBuild.marketOrders.dispatchSchedule | quote }}
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          serviceAccountName: {{ .Release.Name }}-serviceaccount
+          restartPolicy: Never
+          containers:
+            - name: market-orders-dispatch
+              image: {{ .Values.eveBuild.imageRepository }}:{{ .Values.eveBuild.imageTag | default .Chart.AppVersion }}
+              imagePullPolicy: {{ .Values.eveBuild.imagePullPolicy }}
+              command: ["python", "-m", "app.scripts.dispatch_market_orders_scrape"]
+              env:
+                {{- include "eve-build.env" . | nindent 16 }}
+              securityContext:
+                {{- toYaml .Values.eveBuild.securityContext | nindent 16 }}
+{{- end }}

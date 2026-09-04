@@ -1,0 +1,29 @@
+{{- if .Values.rabbitmq.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-market-orders-write-worker
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.eveBuild.marketOrders.writeWorker.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-market-orders-write-worker
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-market-orders-write-worker
+    spec:
+      serviceAccountName: {{ .Release.Name }}-serviceaccount
+      containers:
+        - name: market-orders-write-worker
+          image: {{ .Values.eveBuild.imageRepository }}:{{ .Values.eveBuild.imageTag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.eveBuild.imagePullPolicy }}
+          command: ["python", "-m", "app.scripts.market_orders_write_worker"]
+          env:
+            {{- include "eve-build.env" . | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.eveBuild.securityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.eveBuild.marketOrders.writeWorker.resources | nindent 12 }}
+{{- end }}
