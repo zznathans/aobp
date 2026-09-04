@@ -123,9 +123,18 @@ eveBuild:
     #
     # Cron schedule the dispatch CronJob uses to enqueue a scrape job for every public region.
     dispatchSchedule: "0 * * * *"
+    # -- Shared KEDA settings for both worker ScaledObjects below. Only used when
+    # `keda.enabled` is true - see the top-level `keda` section.
+    keda:
+      # -- How often (in seconds) KEDA polls RabbitMQ for the current queue length.
+      pollingInterval: 15
+      # -- How long (in seconds) to wait after the last high metric value before scaling back down.
+      cooldownPeriod: 120
     fetchWorker:
-      # -- Number of fetch-worker replicas. Each consumes region scrape jobs from RabbitMQ and
-      # pulls that region's market orders from ESI - scale up to parallelize across regions.
+      # -- Number of fetch-worker replicas. Ignored (and no `replicas` field rendered on the
+      # Deployment) when `keda.enabled` is true - the ScaledObject's HPA owns replica count
+      # instead. Each consumes region scrape jobs from RabbitMQ and pulls that region's market
+      # orders from ESI - scale up to parallelize across regions.
       replicas: 3
       # -- Resource requests and limits for the fetch-worker container.
       resources:
@@ -135,9 +144,19 @@ eveBuild:
         limits:
           cpu: 250m
           memory: 128Mi
+      keda:
+        # -- Minimum fetch-worker replicas KEDA will scale down to - 0 lets it scale to zero
+        # between hourly dispatch runs once the scrape_jobs queue drains.
+        minReplicas: 0
+        # -- Maximum fetch-worker replicas KEDA will scale up to.
+        maxReplicas: 10
+        # -- Target number of queued scrape jobs per replica - KEDA scales so that
+        # (queue length / queueLength) replicas are running, up to maxReplicas.
+        queueLength: 5
     writeWorker:
-      # -- Number of write-worker replicas. Each consumes order batches from RabbitMQ and
-      # persists them to MongoDB.
+      # -- Number of write-worker replicas. Ignored (and no `replicas` field rendered on the
+      # Deployment) when `keda.enabled` is true - the ScaledObject's HPA owns replica count
+      # instead. Each consumes order batches from RabbitMQ and persists them to MongoDB.
       replicas: 1
       # -- Resource requests and limits for the write-worker container.
       resources:
@@ -147,6 +166,13 @@ eveBuild:
         limits:
           cpu: 250m
           memory: 256Mi
+      keda:
+        # -- Minimum write-worker replicas KEDA will scale down to.
+        minReplicas: 0
+        # -- Maximum write-worker replicas KEDA will scale up to.
+        maxReplicas: 3
+        # -- Target number of queued result chunks per replica.
+        queueLength: 50
 
   # -- Directory the bundled EVE SDE data is read from at migration time.
   # Only override this if you're mounting a custom SDE dataset.
@@ -356,3 +382,11 @@ rabbitmq:
   existingSecret: ""
   # -- Key within `existingSecret` holding the connection URL.
   existingSecretKey: "url"
+
+keda:
+  # -- Autoscale the market-orders fetch/write worker Deployments with KEDA
+  # (https://keda.sh) ScaledObjects driven by RabbitMQ queue length, instead of the fixed
+  # `fetchWorker.replicas`/`writeWorker.replicas` counts. Requires the KEDA operator already
+  # installed in the cluster and `rabbitmq.enabled: true` - ignored otherwise. When enabled,
+  # workers can scale to zero between dispatch runs and scale up automatically under backlog.
+  enabled: false

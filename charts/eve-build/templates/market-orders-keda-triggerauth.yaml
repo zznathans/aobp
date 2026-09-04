@@ -1,0 +1,14 @@
+{{- if and .Values.rabbitmq.enabled .Values.keda.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: {{ .Release.Name }}-rabbitmq-conn
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  secretTargetRef:
+    - parameter: host
+      name: {{ include "eve-build.rabbitmqSecretName" . }}
+      key: {{ include "eve-build.rabbitmqSecretKey" . }}
+{{- end }}
