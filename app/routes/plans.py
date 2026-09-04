@@ -1,5 +1,6 @@
 from html import escape
 from typing import cast
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -29,7 +30,8 @@ _DETAIL_STYLE = ["/static/card.css", "/static/plans-detail.css"]
 
 
 def _plan_url(plan_id: str) -> str:
-    return f"/plans/{plan_id}"
+    safe_plan_id = quote(plan_id, safe="")
+    return f"/plans/{safe_plan_id}"
 
 
 @router.get("", response_class=HTMLResponse)
