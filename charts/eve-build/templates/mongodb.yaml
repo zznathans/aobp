@@ -7,6 +7,8 @@ kind: Secret
 metadata:
   name: {{ $secretName }}
   namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
 type: Opaque
 data:
   # Generated once, then kept stable across upgrades by reusing whatever's
@@ -23,6 +25,8 @@ kind: MongoDBCommunity
 metadata:
   name: {{ .Release.Name }}-mongodb
   namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   members: {{ .Values.mongodb.members }}
   type: ReplicaSet

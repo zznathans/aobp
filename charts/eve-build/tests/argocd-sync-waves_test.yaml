@@ -1,0 +1,76 @@
+suite: argocd sync waves
+templates:
+  - deployment.yaml
+  - service.yaml
+  - session-secret.yaml
+  - market-prices-secret.yaml
+  - market-prices-cronjob.yaml
+  - service-account.yaml
+  - redis.yaml
+  - mongodb.yaml
+  - market-orders-dispatch-cronjob.yaml
+  - market-orders-fetch-worker.yaml
+  - market-orders-write-worker.yaml
+set:
+  eveBuild.marketPrices.refreshApiKey: my-api-key
+  eveBuild.session.secretKey: my-session-key
+  rabbitmq.enabled: true
+  mongodb.enabled: true
+  redis.enabled: true
+tests:
+  - it: syncs foundational secrets and the service account first (wave -2)
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "-2"
+        template: session-secret.yaml
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "-2"
+        template: market-prices-secret.yaml
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "-2"
+        template: service-account.yaml
+
+  - it: syncs datastores before the app (wave -1)
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "-1"
+        template: redis.yaml
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "-1"
+        documentIndex: 1
+        template: mongodb.yaml
+
+  - it: syncs the app Deployment and Service after datastores (wave 0)
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "0"
+        template: deployment.yaml
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "0"
+        template: service.yaml
+
+  - it: syncs cronjobs and market-orders workers after the app (wave 1)
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "1"
+        template: market-prices-cronjob.yaml
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "1"
+        template: market-orders-dispatch-cronjob.yaml
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "1"
+        template: market-orders-fetch-worker.yaml
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "1"
+        template: market-orders-write-worker.yaml

@@ -5,6 +5,8 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     app: {{ .Release.Name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   selector:
     app: {{ .Release.Name }}

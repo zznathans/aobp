@@ -4,6 +4,8 @@ kind: Deployment
 metadata:
   name: {{ .Release.Name }}-redis
   namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   replicas: 1
   selector:
@@ -54,6 +56,8 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     app: {{ .Release.Name }}-redis
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   selector:
     app: {{ .Release.Name }}-redis

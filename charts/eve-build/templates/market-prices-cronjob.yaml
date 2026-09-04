@@ -5,6 +5,8 @@ kind: CronJob
 metadata:
   name: {{ .Release.Name }}-market-prices-refresh
   namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   schedule: {{ .Values.eveBuild.marketPrices.schedule | quote }}
   jobTemplate:
