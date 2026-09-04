@@ -1,3 +1,5 @@
+import httpx
+import pytest
 import respx
 from httpx import Response
 from prometheus_client import Histogram
@@ -165,3 +167,145 @@ async def test_get_location_details_records_error_on_forbidden() -> None:
         esi.ESI_REQUEST_ERRORS.labels(endpoint="universe/structures")._value.get()
         == errors_before + 1
     )
+
+
+@respx.mock
+async def test_get_region_ids_returns_all_regions() -> None:
+    settings = Settings()
+    respx.get(f"{settings.esi_base_url}/universe/regions/").mock(
+        return_value=Response(200, json=[10000002, 10000043])
+    )
+
+    region_ids = await esi.get_region_ids(settings)
+
+    assert region_ids == [10000002, 10000043]
+
+
+_SAMPLE_ORDER = {
+    "order_id": 1,
+    "type_id": 34,
+    "location_id": 60003760,
+    "is_buy_order": False,
+    "price": 5.5,
+    "volume_remain": 100,
+    "volume_total": 200,
+    "min_volume": 1,
+    "duration": 90,
+    "issued": "2026-01-01T00:00:00Z",
+    "range": "region",
+}
+
+
+@respx.mock
+async def test_get_market_orders_page_parses_entries_and_page_count() -> None:
+    settings = Settings()
+    respx.get(f"{settings.esi_base_url}/markets/10000002/orders/", params={"page": 1}).mock(
+        return_value=Response(200, headers={"X-Pages": "3"}, json=[_SAMPLE_ORDER])
+    )
+
+    orders, total_pages = await esi.get_market_orders_page(settings, 10000002, 1)
+
+    assert total_pages == 3
+    assert orders == [
+        esi.MarketOrderEntry(
+            order_id=1,
+            type_id=34,
+            location_id=60003760,
+            is_buy_order=False,
+            price=5.5,
+            volume_remain=100,
+            volume_total=200,
+            min_volume=1,
+            duration=90,
+            issued="2026-01-01T00:00:00Z",
+            range="region",
+        )
+    ]
+
+
+@respx.mock
+async def test_get_market_orders_page_returns_empty_for_region_with_no_market() -> None:
+    settings = Settings()
+    respx.get(f"{settings.esi_base_url}/markets/10000004/orders/", params={"page": 1}).mock(
+        return_value=Response(404, json={"error": "Region not found"})
+    )
+
+    orders, total_pages = await esi.get_market_orders_page(settings, 10000004, 1)
+
+    assert orders == []
+    assert total_pages == 0
+
+
+@respx.mock
+async def test_get_market_orders_page_retries_transient_errors_then_succeeds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = Settings()
+    sleeps: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    monkeypatch.setattr(esi.asyncio, "sleep", fake_sleep)
+
+    respx.get(f"{settings.esi_base_url}/markets/10000002/orders/", params={"page": 1}).mock(
+        side_effect=[
+            Response(503, json={"error": "Service unavailable"}),
+            Response(429, json={"error": "Too many errors"}),
+            Response(200, headers={"X-Pages": "1"}, json=[]),
+        ]
+    )
+
+    orders, total_pages = await esi.get_market_orders_page(settings, 10000002, 1)
+
+    assert orders == []
+    assert total_pages == 1
+    assert len(sleeps) == 2
+
+
+@respx.mock
+async def test_get_market_orders_page_gives_up_after_max_attempts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = Settings(market_orders_page_retry_max_attempts=2)
+
+    async def fake_sleep(delay: float) -> None:
+        return None
+
+    monkeypatch.setattr(esi.asyncio, "sleep", fake_sleep)
+
+    respx.get(f"{settings.esi_base_url}/markets/10000002/orders/", params={"page": 1}).mock(
+        return_value=Response(503, json={"error": "Service unavailable"})
+    )
+
+    with pytest.raises(httpx.HTTPStatusError):
+        await esi.get_market_orders_page(settings, 10000002, 1)
+
+
+@respx.mock
+async def test_get_market_orders_page_backs_off_when_error_limit_low(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = Settings()
+    sleeps: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    monkeypatch.setattr(esi.asyncio, "sleep", fake_sleep)
+
+    respx.get(f"{settings.esi_base_url}/markets/10000002/orders/", params={"page": 1}).mock(
+        return_value=Response(
+            200,
+            headers={
+                "X-Pages": "1",
+                "X-Esi-Error-Limit-Remain": "5",
+                "X-Esi-Error-Limit-Reset": "20",
+            },
+            json=[],
+        )
+    )
+
+    await esi.get_market_orders_page(settings, 10000002, 1)
+
+    assert sleeps == [20.0]
