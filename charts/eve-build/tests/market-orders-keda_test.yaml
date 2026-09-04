@@ -180,3 +180,37 @@ tests:
           path: spec.secretTargetRef[0].key
           value: connectionString
         template: market-orders-keda-triggerauth.yaml
+
+  - it: syncs the rabbitmq connection secret with the other early secrets (wave -2)
+    set:
+      rabbitmq.enabled: true
+      keda.enabled: true
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "-2"
+        template: market-orders-rabbitmq-secret.yaml
+
+  - it: syncs the TriggerAuthentication after the workers (wave 2)
+    set:
+      rabbitmq.enabled: true
+      keda.enabled: true
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "2"
+        template: market-orders-keda-triggerauth.yaml
+
+  - it: syncs both ScaledObjects last (wave 3)
+    set:
+      rabbitmq.enabled: true
+      keda.enabled: true
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "3"
+        template: market-orders-fetch-worker-scaledobject.yaml
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "3"
+        template: market-orders-write-worker-scaledobject.yaml

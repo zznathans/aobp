@@ -4,6 +4,8 @@ kind: TriggerAuthentication
 metadata:
   name: {{ .Release.Name }}-rabbitmq-conn
   namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   secretTargetRef:
     - parameter: host
