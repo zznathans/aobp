@@ -19,7 +19,7 @@ dependencies = [
     "pyjwt[crypto]>=2.8",
     "pymongo>=4.6,<5.0",
     "redis>=5.0,<9.0",
-    "aio-pika>=9.4,<10.0",
+    "aio-pika>=9.4,<11.0",
     "prometheus-fastapi-instrumentator>=8.0,<9.0",
 ]
 
