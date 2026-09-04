@@ -2,8 +2,18 @@ apiVersion: v1
 entries:
   eve-build-chart:
   - apiVersion: v2
+    appVersion: 1.32.0
+    created: "2026-09-04T02:10:18.318340797Z"
+    description: Helm chart for eve-build
+    digest: 3068eb9c2b4031df6e3ded25b166cd2830521f922c30846fa272cd138cbc4c41
+    name: eve-build-chart
+    type: application
+    urls:
+    - https://zznathans.github.io/eve-build/eve-build-chart-1.32.0.tgz
+    version: 1.32.0
+  - apiVersion: v2
     appVersion: 1.31.0
-    created: "2026-09-03T22:00:04.764583738Z"
+    created: "2026-09-04T02:10:18.317054979Z"
     description: Helm chart for eve-build
     digest: eac488b1a765123a2051e648c45a336c12b2fcdb2030e9c59fe5ac02a1a00ea6
     name: eve-build-chart
@@ -13,7 +23,7 @@ entries:
     version: 1.31.0
   - apiVersion: v2
     appVersion: 1.30.0
-    created: "2026-09-03T22:00:04.763705642Z"
+    created: "2026-09-04T02:10:18.316055997Z"
     description: Helm chart for eve-build
     digest: 94e64d47f929955154c83a2eb4b96b236f7c6ffffb31ea74e08d7f5e14e42a3a
     name: eve-build-chart
@@ -23,7 +33,7 @@ entries:
     version: 1.30.0
   - apiVersion: v2
     appVersion: 1.29.4
-    created: "2026-09-03T22:00:04.762358918Z"
+    created: "2026-09-04T02:10:18.315083675Z"
     description: Helm chart for eve-build
     digest: e3f8db2fe96b99d724cd9e30e8feb729ab55602ffcd5195128a649d10aeff391
     name: eve-build-chart
@@ -33,7 +43,7 @@ entries:
     version: 1.29.4
   - apiVersion: v2
     appVersion: 1.29.3
-    created: "2026-09-03T22:00:04.761225968Z"
+    created: "2026-09-04T02:10:18.314165134Z"
     description: Helm chart for eve-build
     digest: 7dd9d7adfb7905660762d2c637fbc8fcf9355d807a2041e192678fb28cd47eb3
     name: eve-build-chart
@@ -41,4 +51,4 @@ entries:
     urls:
     - https://zznathans.github.io/eve-build/eve-build-chart-1.29.3.tgz
     version: 1.29.3
-generated: "2026-09-03T22:00:04.760303078Z"
+generated: "2026-09-04T02:10:18.313119956Z"
