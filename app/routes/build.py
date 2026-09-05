@@ -41,6 +41,21 @@ def _section(title: str, cards_html: str) -> str:
     """
 
 
+def _build_toggle_href(
+    target_type_id: int,
+    qty: int,
+    build_set: frozenset[int],
+    toggled_type_id: int,
+    *,
+    adding: bool,
+) -> str:
+    updated = (build_set | {toggled_type_id}) if adding else (build_set - {toggled_type_id})
+    query = f"qty={qty}"
+    if updated:
+        query += f"&build={','.join(str(t) for t in sorted(updated))}"
+    return f"/build/items/{target_type_id}?{query}"
+
+
 @router.get("", response_class=HTMLResponse)
 async def build_chooser(
     character: CharacterDocument | None = Depends(get_current_character_optional),
@@ -120,13 +135,15 @@ async def item_build_chain(
     redis: Redis | None = Depends(get_redis),
     settings: Settings = Depends(get_settings),
     qty: int = Query(default=1, ge=1),
+    build: str = Query(default=""),
 ) -> HTMLResponse:
     type_docs = await sde.type_docs(db, redis, settings, {type_id})
     type_doc = type_docs.get(type_id)
     if type_doc is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Item not found")
 
-    resolution = await build_chain.resolve_build_chain(db, redis, settings, type_id, qty)
+    build_set = frozenset(int(t) for t in build.split(",") if t.strip().isdigit())
+    resolution = await build_chain.resolve_build_chain(db, redis, settings, type_id, qty, build_set)
     item_name = escape(resolution.target_name)
     item_icon = escape(item_icon_url(type_id))
     page_title = f"{item_name} - eve-build"
@@ -158,6 +175,12 @@ async def item_build_chain(
         + _summary_stat(str(len(resolution.steps)), "Build steps")
     )
 
+    def _buy_flag(step_type_id: int) -> str:
+        if step_type_id == type_id:
+            return ""
+        href = escape(_build_toggle_href(type_id, qty, build_set, step_type_id, adding=False))
+        return f'<a class="flag flag-buy" href="{href}">Buy instead</a>'
+
     step_cards = "".join(f"""
           <div class="item-card">
             <div class="item-card-content">
@@ -165,13 +188,20 @@ async def item_build_chain(
                 <img class="item-title-icon" src="{escape(item_icon_url(step.type_id))}" alt=""
                   onerror="this.style.visibility='hidden'">
                 {escape(step.name)}
+                {_buy_flag(step.type_id)}
               </div>
               {item_line_html("Runs", str(step.runs))}
               {item_line_html("Produces", str(step.quantity_needed))}
             </div>
           </div>
         """ for step in resolution.steps)
-    steps_section = _section("Build order", step_cards)
+    steps_section = _section("Build steps", step_cards)
+
+    def _material_flag(material: build_chain.RawMaterial) -> str:
+        if not material.is_buildable:
+            return '<span class="flag flag-buy">Bought</span>'
+        href = escape(_build_toggle_href(type_id, qty, build_set, material.type_id, adding=True))
+        return f'<a class="flag flag-build" href="{href}">Build</a>'
 
     raw_cards = "".join(f"""
           <div class="item-card">
@@ -180,18 +210,19 @@ async def item_build_chain(
                 <img class="item-title-icon" src="{escape(item_icon_url(material.type_id))}"
                   alt="" onerror="this.style.visibility='hidden'">
                 {escape(material.name)}
+                {_material_flag(material)}
               </div>
               {item_line_html("Quantity", str(material.quantity))}
               {item_line_html("Est. cost", format_isk(material.quantity * material.unit_price))}
             </div>
           </div>
         """ for material in resolution.raw_materials)
-    raw_section = _section("Raw materials", raw_cards)
+    raw_section = _section("Materials", raw_cards)
 
     body = f"""<div class="page">{header}
       <div class="summary">{stats}</div>
-      {steps_section}
       {raw_section}
+      {steps_section}
       <a class="btn btn-secondary back" href="/build/items">Back to search</a>
     </div>"""
     return HTMLResponse(render_page(page_title, body, _DETAIL_STYLE, character=character))

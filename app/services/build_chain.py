@@ -27,6 +27,7 @@ class RawMaterial:
     name: str
     quantity: int
     unit_price: float
+    is_buildable: bool
 
 
 @dataclass
@@ -47,14 +48,18 @@ async def resolve_build_chain(
     settings: Settings,
     target_type_id: int,
     target_quantity: int = 1,
+    build_set: frozenset[int] = frozenset(),
 ) -> BuildResolution:
-    """Walks the full build chain for a target item: finds the blueprint that produces it,
-    then recursively treats any of its materials that are themselves buildable as further
-    build steps, aggregating demand for shared components across the whole tree (a component
-    needed by two different branches gets a single combined step, not two). Anything left
-    with no blueprint of its own is a raw/purchasable material - the leaves of the chain."""
+    """Walks the build chain for a target item: finds the blueprint that produces it, then
+    expands a material into further build steps only if it's in build_set (the target itself
+    is always expanded, since building it is the whole point of the page) - aggregating demand
+    for shared components across the whole tree (a component needed by two different branches
+    gets a single combined step, not two). Anything not expanded is a raw/purchasable material -
+    the current leaves of the chain - whether or not it has a blueprint of its own, so the
+    caller can tell which leaves could be toggled to "build" versus which can only be bought."""
     steps_by_type_id: dict[int, BuildStep] = {}
     raw_totals: dict[int, int] = {}
+    raw_buildable: dict[int, bool] = {}
 
     current_level: dict[int, int] = {target_type_id: target_quantity}
     depth = 0
@@ -68,8 +73,9 @@ async def resolve_build_chain(
 
         for type_id, quantity in current_level.items():
             blueprint = blueprint_docs.get(type_id)
-            if blueprint is None:
+            if blueprint is None or (type_id != target_type_id and type_id not in build_set):
                 raw_totals[type_id] = raw_totals.get(type_id, 0) + quantity
+                raw_buildable[type_id] = blueprint is not None
                 continue
 
             product_quantity = cast(int, blueprint.get("product_quantity", 1))
@@ -102,6 +108,7 @@ async def resolve_build_chain(
     # which is a DAG, but treat anything left over as raw rather than lose it).
     for type_id, quantity in current_level.items():
         raw_totals[type_id] = raw_totals.get(type_id, 0) + quantity
+        raw_buildable.setdefault(type_id, False)
 
     all_type_ids = {target_type_id} | set(steps_by_type_id) | set(raw_totals)
     type_docs = await sde.type_docs(db, redis, settings, all_type_ids)
@@ -120,6 +127,7 @@ async def resolve_build_chain(
             name=_name(type_id),
             quantity=quantity,
             unit_price=market_prices.unit_price(price_by_type_id.get(type_id)),
+            is_buildable=raw_buildable[type_id],
         )
         for type_id, quantity in sorted(raw_totals.items(), key=lambda item: _name(item[0]))
     ]

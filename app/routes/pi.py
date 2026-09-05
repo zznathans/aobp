@@ -163,13 +163,13 @@ async def list_colonies(
         if future_expiries:
             soonest = min(future_expiries)
             status_html = (
-                f'<span class="status-extracting">Extracting &middot; '
+                f'<span class="flag flag-build">Extracting &middot; '
                 f"ready {escape(humanize_relative_time(soonest))}</span>"
             )
         elif expiry_times:
-            status_html = '<span class="status-idle">Idle &middot; extraction expired</span>'
+            status_html = '<span class="flag flag-buy">Idle &middot; extraction expired</span>'
         else:
-            status_html = '<span class="status-idle">Idle</span>'
+            status_html = '<span class="flag flag-buy">Idle</span>'
 
         extractor_count = sum(1 for pin in colony.pins if pin.get("extractor_details"))
         factory_count = sum(
@@ -438,13 +438,13 @@ async def colony_detail(
     future_expiries = [t for t in expiry_times if t > now]
     if future_expiries:
         status_html = (
-            f'<span class="status-extracting">Extracting &middot; '
+            f'<span class="flag flag-build">Extracting &middot; '
             f"ready {escape(humanize_relative_time(min(future_expiries)))}</span>"
         )
     elif expiry_times:
-        status_html = '<span class="status-idle">Extraction expired</span>'
+        status_html = '<span class="flag flag-buy">Extraction expired</span>'
     else:
-        status_html = '<span class="status-idle">Idle</span>'
+        status_html = '<span class="flag flag-buy">Idle</span>'
 
     header = f"""
       <div class="header">

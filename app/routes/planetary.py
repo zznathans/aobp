@@ -17,8 +17,8 @@ from app.web import format_isk, item_icon_url, render_page
 
 router = APIRouter(prefix="/planetary", tags=["planetary"])
 
-_LIST_STYLE = "/static/planetary-list.css"
-_DETAIL_STYLE = "/static/planetary-detail.css"
+_LIST_STYLE = ["/static/card.css", "/static/planetary-list.css"]
+_DETAIL_STYLE = ["/static/card.css", "/static/planetary-detail.css"]
 
 _TIER_LABELS: dict[int, str] = {
     1042: "Tier 1 - Basic Commodities",

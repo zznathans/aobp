@@ -26,4 +26,3 @@ h2:first-of-type { margin-top: 0; }
 .pi-link .icon { width: 32px; height: 32px; border-radius: 4px; flex-shrink: 0; }
 .pi-link .name { font-weight: 600; }
 .pi-inputs { color: #9aa4b2; font-size: 0.8rem; }
-.empty { color: #9aa4b2; }
