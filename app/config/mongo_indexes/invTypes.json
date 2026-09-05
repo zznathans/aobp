@@ -1,0 +1,21 @@
+{
+  "collection": "invTypes",
+  "indexes": [
+    {
+      "name": "typeID",
+      "keys": [["typeID", 1]]
+    },
+    {
+      "name": "typeName",
+      "keys": [["typeName", 1]]
+    },
+    {
+      "name": "groupID",
+      "keys": [["groupID", 1]]
+    },
+    {
+      "name": "marketGroupID",
+      "keys": [["marketGroupID", 1]]
+    }
+  ]
+}
