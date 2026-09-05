@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     sde_data_dir: str = "app/data/sde"
     run_migrations_on_startup: bool = True
 
+    mongo_indexes_dir: str = "app/config/mongo_indexes"
+    sync_indexes_on_startup: bool = True
+
     redis_enabled: bool = False
     redis_url: str = "redis://localhost:6379/0"
     redis_cache_ttl_seconds: int = 60 * 60 * 24

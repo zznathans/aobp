@@ -15,6 +15,7 @@ def test_metrics_disabled_by_default(client: TestClient) -> None:
 def test_metrics_endpoint_when_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("METRICS_ENABLED", "true")
     monkeypatch.setenv("RUN_MIGRATIONS_ON_STARTUP", "false")
+    monkeypatch.setenv("SYNC_INDEXES_ON_STARTUP", "false")
     monkeypatch.setenv("REDIS_ENABLED", "false")
     monkeypatch.setenv("METRICS_DB_GAUGES_ENABLED", "false")
     get_settings.cache_clear()
@@ -34,6 +35,7 @@ def test_metrics_endpoint_when_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_health_still_works_when_metrics_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("METRICS_ENABLED", "true")
     monkeypatch.setenv("RUN_MIGRATIONS_ON_STARTUP", "false")
+    monkeypatch.setenv("SYNC_INDEXES_ON_STARTUP", "false")
     monkeypatch.setenv("REDIS_ENABLED", "false")
     monkeypatch.setenv("METRICS_DB_GAUGES_ENABLED", "false")
     get_settings.cache_clear()
