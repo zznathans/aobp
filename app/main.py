@@ -20,12 +20,12 @@ from app.routes import (
     assets,
     auth,
     blueprints,
+    build,
     health,
     jobs,
     market_prices,
     pi,
     planetary,
-    plans,
     settings,
 )
 from app.services.db_gauges import refresh_db_gauges_periodically
@@ -122,9 +122,9 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(assets.router)
 app.include_router(blueprints.router)
+app.include_router(build.router)
 app.include_router(jobs.router)
 app.include_router(market_prices.router)
 app.include_router(pi.router)
 app.include_router(planetary.router)
-app.include_router(plans.router)
 app.include_router(settings.router)

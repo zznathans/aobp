@@ -1,0 +1,24 @@
+.page { max-width: 80%; margin: 0 auto; padding: 2rem 1.5rem; }
+h1 { font-size: 1.4rem; margin: 0 0 1.5rem; }
+.filters {
+  display: flex; gap: 1.25rem; align-items: center;
+  margin-bottom: 1.25rem; font-size: 0.85rem; color: #9aa4b2;
+}
+.filters input[type="text"] {
+  background: #1a1d24; color: #e6e6e6;
+  border: 1px solid #2a2e37; border-radius: 6px; padding: 0.35rem 0.5rem;
+  font-size: 0.85rem; width: 20rem;
+}
+.item-grid { margin-bottom: 1.5rem; }
+
+.chooser-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem; max-width: 50rem;
+}
+.chooser-card {
+  display: block; background: #14161c; border: 1px solid #2a2e37; border-radius: 10px;
+  padding: 1.5rem; text-decoration: none; color: inherit;
+}
+.chooser-card:hover { border-color: #4c8bf5; }
+.chooser-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; }
+.chooser-description { color: #9aa4b2; font-size: 0.85rem; line-height: 1.4; }
