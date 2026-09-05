@@ -69,6 +69,29 @@ async def list_all_planet_schematics(db: AsyncIOMotorDatabase) -> list[dict[str,
     return await db.sde_planet_schematics.find({}).to_list(None)
 
 
+async def search_items_by_name(
+    db: AsyncIOMotorDatabase, query: str, limit: int = 50
+) -> list[dict[str, object]]:
+    """Search every published item in the game by name - not just blueprints, so a user can
+    look up a target item (e.g. "Rifter") rather than its blueprint ("Rifter Blueprint")."""
+    cursor = (
+        db.sde_types.find(
+            {"name": {"$regex": re.escape(query), "$options": "i"}, "published": True}
+        )
+        .sort("name", 1)
+        .limit(limit)
+    )
+    return await cursor.to_list(None)
+
+
+async def blueprint_for_product(
+    db: AsyncIOMotorDatabase, product_type_id: int
+) -> dict[str, object] | None:
+    """Reverse lookup: which blueprint (or reaction formula) produces this item, if any.
+    Backed by an index on product_type_id (see migration 0010)."""
+    return await db.sde_blueprints.find_one({"product_type_id": product_type_id})
+
+
 async def search_blueprints_by_name(
     db: AsyncIOMotorDatabase, query: str, limit: int = 50
 ) -> list[dict[str, object]]:

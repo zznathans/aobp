@@ -142,6 +142,7 @@ def render_nav(character: CharacterDocument | None) -> str:
           <nav class="navbar">
             <a class="brand" href="/">eve-build</a>
             <div class="nav-links">
+              <a href="/build">Build</a>
               <a href="/blueprints/catalog">Blueprint Catalog</a>
               <a href="/planetary">PI Schematics</a>
             </div>
@@ -158,6 +159,7 @@ def render_nav(character: CharacterDocument | None) -> str:
         <a class="brand" href="/">eve-build</a>
         <div class="nav-links">
           <a href="/">Home</a>
+          <a href="/build">Build</a>
           <a href="/blueprints">Blueprints</a>
           <a href="/assets">Assets</a>
           <a href="/pi">Planets</a>

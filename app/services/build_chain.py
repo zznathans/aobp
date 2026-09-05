@@ -1,0 +1,167 @@
+import math
+from dataclasses import dataclass, field
+from typing import cast
+
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from redis.asyncio import Redis
+
+from app.core.config import Settings
+from app.services import market_prices, sde
+
+_MAX_DEPTH = 15
+
+
+@dataclass
+class BuildStep:
+    type_id: int
+    name: str
+    quantity_needed: int
+    runs: int
+    product_quantity: int
+    materials: dict[int, int] = field(default_factory=dict)
+
+
+@dataclass
+class RawMaterial:
+    type_id: int
+    name: str
+    quantity: int
+    unit_price: float
+
+
+@dataclass
+class BuildResolution:
+    target_type_id: int
+    target_name: str
+    target_quantity: int
+    is_buildable: bool
+    steps: list[BuildStep]
+    raw_materials: list[RawMaterial]
+    raw_material_cost: float
+    output_value: float
+
+
+async def resolve_build_chain(
+    db: AsyncIOMotorDatabase,
+    redis: Redis | None,
+    settings: Settings,
+    target_type_id: int,
+    target_quantity: int = 1,
+) -> BuildResolution:
+    """Walks the full build chain for a target item: finds the blueprint that produces it,
+    then recursively treats any of its materials that are themselves buildable as further
+    build steps, aggregating demand for shared components across the whole tree (a component
+    needed by two different branches gets a single combined step, not two). Anything left
+    with no blueprint of its own is a raw/purchasable material - the leaves of the chain."""
+    steps_by_type_id: dict[int, BuildStep] = {}
+    raw_totals: dict[int, int] = {}
+
+    current_level: dict[int, int] = {target_type_id: target_quantity}
+    depth = 0
+    while current_level and depth < _MAX_DEPTH:
+        next_level: dict[int, int] = {}
+        blueprint_docs = {
+            type_id: doc
+            for type_id in current_level
+            if (doc := await sde.blueprint_for_product(db, type_id)) is not None
+        }
+
+        for type_id, quantity in current_level.items():
+            blueprint = blueprint_docs.get(type_id)
+            if blueprint is None:
+                raw_totals[type_id] = raw_totals.get(type_id, 0) + quantity
+                continue
+
+            product_quantity = cast(int, blueprint.get("product_quantity", 1))
+            materials = cast(list[dict[str, int]], blueprint["materials"])
+            additional_runs = max(1, math.ceil(quantity / product_quantity))
+
+            step = steps_by_type_id.get(type_id)
+            if step is None:
+                step = BuildStep(
+                    type_id=type_id,
+                    name="",
+                    quantity_needed=0,
+                    runs=0,
+                    product_quantity=product_quantity,
+                )
+                steps_by_type_id[type_id] = step
+            step.quantity_needed += quantity
+            step.runs += additional_runs
+
+            for material in materials:
+                material_type_id = material["type_id"]
+                needed = material["quantity"] * additional_runs
+                step.materials[material_type_id] = step.materials.get(material_type_id, 0) + needed
+                next_level[material_type_id] = next_level.get(material_type_id, 0) + needed
+
+        current_level = next_level
+        depth += 1
+
+    # Hit the recursion guard while demand remained (shouldn't happen on real game data,
+    # which is a DAG, but treat anything left over as raw rather than lose it).
+    for type_id, quantity in current_level.items():
+        raw_totals[type_id] = raw_totals.get(type_id, 0) + quantity
+
+    all_type_ids = {target_type_id} | set(steps_by_type_id) | set(raw_totals)
+    type_docs = await sde.type_docs(db, redis, settings, all_type_ids)
+    prices = await market_prices.list_market_prices(db, all_type_ids)
+    price_by_type_id: dict[int, dict[str, object]] = {cast(int, p["_id"]): p for p in prices}
+
+    def _name(type_id: int) -> str:
+        return str(type_docs.get(type_id, {}).get("name", f"Type {type_id}"))
+
+    for step in steps_by_type_id.values():
+        step.name = _name(step.type_id)
+
+    raw_materials = [
+        RawMaterial(
+            type_id=type_id,
+            name=_name(type_id),
+            quantity=quantity,
+            unit_price=market_prices.unit_price(price_by_type_id.get(type_id)),
+        )
+        for type_id, quantity in sorted(raw_totals.items(), key=lambda item: _name(item[0]))
+    ]
+    raw_material_cost = sum(material.quantity * material.unit_price for material in raw_materials)
+
+    target_step = steps_by_type_id.get(target_type_id)
+    output_value = target_quantity * market_prices.unit_price(price_by_type_id.get(target_type_id))
+
+    # Order steps deepest-first (the order you'd actually build in - components before the
+    # thing that consumes them), by minimum distance from the raw materials.
+    ordered_steps = _topological_order(target_type_id, steps_by_type_id)
+
+    return BuildResolution(
+        target_type_id=target_type_id,
+        target_name=_name(target_type_id),
+        target_quantity=target_quantity,
+        is_buildable=target_step is not None,
+        steps=ordered_steps,
+        raw_materials=raw_materials,
+        raw_material_cost=raw_material_cost,
+        output_value=output_value,
+    )
+
+
+def _topological_order(
+    target_type_id: int, steps_by_type_id: dict[int, BuildStep]
+) -> list[BuildStep]:
+    """Depth-first post-order traversal from the target down through its build steps, so a
+    component is listed before anything that depends on it."""
+    ordered: list[BuildStep] = []
+    visited: set[int] = set()
+
+    def _visit(type_id: int) -> None:
+        if type_id in visited:
+            return
+        visited.add(type_id)
+        step = steps_by_type_id.get(type_id)
+        if step is None:
+            return
+        for material_type_id in step.materials:
+            _visit(material_type_id)
+        ordered.append(step)
+
+    _visit(target_type_id)
+    return ordered
