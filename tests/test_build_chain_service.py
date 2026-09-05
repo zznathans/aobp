@@ -1,7 +1,7 @@
 from mongomock_motor import AsyncMongoMockClient
 
 from app.core.config import Settings
-from app.services.build_chain import resolve_build_chain
+from app.services.build_chain import aggregate_raw_materials, resolve_build_chain
 
 TRITANIUM_TYPE_ID = 34
 PYERITE_TYPE_ID = 35
@@ -370,3 +370,48 @@ async def test_resolve_build_chain_expands_planetary_material_down_to_p0(
     assert p0_material.is_buildable is False
     # 1 P2 run needs 40 P1 -> 2 P1 runs (20/run) -> 2 * 3000 = 6000 P0.
     assert p0_material.quantity == 6000
+
+
+async def test_aggregate_raw_materials_sums_a_shared_material_across_resolutions(
+    mongo_db: AsyncMongoMockClient, test_settings: Settings
+) -> None:
+    await _seed_names(
+        mongo_db,
+        [
+            {"_id": SHIP_TYPE_ID, "name": "Test Ship", "published": True},
+            {"_id": MODULE_TYPE_ID, "name": "Test Module", "published": True},
+            {"_id": TRITANIUM_TYPE_ID, "name": "Tritanium", "published": True},
+            {"_id": PYERITE_TYPE_ID, "name": "Pyerite", "published": True},
+        ],
+    )
+    await mongo_db.sde_blueprints.insert_many(
+        [
+            {
+                "_id": SHIP_BLUEPRINT_TYPE_ID,
+                "product_type_id": SHIP_TYPE_ID,
+                "product_quantity": 1,
+                "materials": [{"type_id": TRITANIUM_TYPE_ID, "quantity": 100}],
+                "activity_id": 1,
+            },
+            {
+                "_id": MODULE_BLUEPRINT_TYPE_ID,
+                "product_type_id": MODULE_TYPE_ID,
+                "product_quantity": 1,
+                "materials": [
+                    {"type_id": TRITANIUM_TYPE_ID, "quantity": 50},
+                    {"type_id": PYERITE_TYPE_ID, "quantity": 20},
+                ],
+                "activity_id": 1,
+            },
+        ]
+    )
+
+    ship_resolution = await resolve_build_chain(mongo_db, None, test_settings, SHIP_TYPE_ID, 1)
+    module_resolution = await resolve_build_chain(mongo_db, None, test_settings, MODULE_TYPE_ID, 1)
+
+    combined = aggregate_raw_materials([ship_resolution, module_resolution])
+
+    by_type_id = {material.type_id: material.quantity for material in combined}
+    assert by_type_id[TRITANIUM_TYPE_ID] == 150  # 100 (ship) + 50 (module)
+    assert by_type_id[PYERITE_TYPE_ID] == 20  # only needed by the module
+    assert len(combined) == 2

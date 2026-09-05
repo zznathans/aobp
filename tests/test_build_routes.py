@@ -69,6 +69,13 @@ def test_build_chooser_shows_both_options(client: TestClient) -> None:
     assert 'href="/blueprints/catalog"' in response.text
 
 
+def test_build_chooser_carries_plan_id_forward(client: TestClient) -> None:
+    response = client.get("/build", params={"plan_id": "plan-123"})
+
+    assert response.status_code == 200
+    assert 'href="/build/items?plan_id=plan-123"' in response.text
+
+
 async def test_item_search_finds_items_by_name(
     client: TestClient, mongo_db: AsyncMongoMockClient
 ) -> None:
@@ -79,6 +86,18 @@ async def test_item_search_finds_items_by_name(
     assert response.status_code == 200
     assert "Test Ship" in response.text
     assert f'href="/build/items/{SHIP_TYPE_ID}"' in response.text
+
+
+async def test_item_search_carries_plan_id_forward(
+    client: TestClient, mongo_db: AsyncMongoMockClient
+) -> None:
+    await _seed_buildable_ship(mongo_db)
+
+    response = client.get("/build/items", params={"q": "test ship", "plan_id": "plan-123"})
+
+    assert response.status_code == 200
+    assert f'href="/build/items/{SHIP_TYPE_ID}?plan_id=plan-123"' in response.text
+    assert '<input type="hidden" name="plan_id" value="plan-123">' in response.text
 
 
 async def test_item_search_prompts_for_more_characters(client: TestClient) -> None:
@@ -118,6 +137,38 @@ async def test_item_build_chain_shows_add_to_plan_when_logged_in(
     assert response.status_code == 200
     href = f"/plans/create?type_id={SHIP_TYPE_ID}&amp;qty=2&amp;build="
     assert f'<a class="btn btn-primary" href="{href}">Add to Plan</a>' in response.text
+
+
+@respx.mock
+async def test_item_build_chain_add_to_plan_targets_add_job_when_plan_id_present(
+    client: TestClient,
+    test_settings: Settings,
+    mongo_db: AsyncMongoMockClient,
+    rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+) -> None:
+    _log_in(client, test_settings, rsa_key_pair)
+    await _seed_buildable_ship(mongo_db)
+
+    response = client.get(f"/build/items/{SHIP_TYPE_ID}", params={"qty": 2, "plan_id": "plan-123"})
+
+    assert response.status_code == 200
+    href = f"/plans/plan-123/add-job?type_id={SHIP_TYPE_ID}&amp;qty=2&amp;build="
+    assert f'<a class="btn btn-primary" href="{href}">Add to Plan</a>' in response.text
+
+
+async def test_item_build_chain_carries_plan_id_through_qty_form_and_toggles(
+    client: TestClient, mongo_db: AsyncMongoMockClient
+) -> None:
+    await _seed_two_level_ship(mongo_db)
+
+    response = client.get(f"/build/items/{SHIP_TYPE_ID}", params={"plan_id": "plan-123"})
+
+    assert response.status_code == 200
+    assert '<input type="hidden" name="plan_id" value="plan-123">' in response.text
+    assert (
+        f'href="/build/items/{SHIP_TYPE_ID}?qty=1&amp;build={COMPONENT_TYPE_ID}'
+        '&amp;plan_id=plan-123"' in response.text
+    )
 
 
 async def test_item_build_chain_qty_form_preserves_build_state(

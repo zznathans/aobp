@@ -203,3 +203,26 @@ def _topological_order(
 
     _visit(target_type_id)
     return ordered
+
+
+def aggregate_raw_materials(resolutions: list[BuildResolution]) -> list[RawMaterial]:
+    """Merges the raw materials needed across multiple resolutions (e.g. every job in a plan)
+    into one combined shopping list, summing quantities for a material two jobs both need.
+    name/unit_price/is_buildable only depend on type_id, so the first occurrence's values are
+    reused rather than re-fetched."""
+    merged: dict[int, RawMaterial] = {}
+    for resolution in resolutions:
+        for material in resolution.raw_materials:
+            existing = merged.get(material.type_id)
+            if existing is None:
+                merged[material.type_id] = RawMaterial(
+                    type_id=material.type_id,
+                    name=material.name,
+                    quantity=material.quantity,
+                    unit_price=material.unit_price,
+                    is_buildable=material.is_buildable,
+                )
+            else:
+                existing.quantity += material.quantity
+
+    return sorted(merged.values(), key=lambda material: material.name)

@@ -33,6 +33,7 @@ def _build_toggle_href(
     qty: int,
     build_set: frozenset[int],
     toggled_type_id: int,
+    plan_id: str | None,
     *,
     adding: bool,
 ) -> str:
@@ -40,6 +41,8 @@ def _build_toggle_href(
     query = f"qty={qty}"
     if updated:
         query += f"&build={','.join(str(t) for t in sorted(updated))}"
+    if plan_id:
+        query += f"&plan_id={plan_id}"
     return f"/build/items/{target_type_id}?{query}"
 
 
@@ -49,19 +52,17 @@ def render_build_resolution_sections(
     type_id: int,
     qty: int,
     build_set: frozenset[int],
-    interactive: bool,
+    plan_id: str | None,
 ) -> str:
-    """Renders the Materials + Build steps sections shared by the item build-chain page and a
-    saved plan's read-only overview page. When interactive, materials/steps get clickable
-    Build/Buy toggle links (see _build_toggle_href); when not, the same flags render as plain
-    spans - a saved plan doesn't have anywhere sensible to persist a toggle click back to."""
+    """Renders the Materials + Build steps sections for the item build-chain page, with
+    clickable Build/Buy toggle links (see _build_toggle_href)."""
 
     def _buy_flag(step_type_id: int) -> str:
         if step_type_id == type_id:
             return ""
-        if not interactive:
-            return '<span class="flag flag-buy-toggle">Buy</span>'
-        href = escape(_build_toggle_href(type_id, qty, build_set, step_type_id, adding=False))
+        href = escape(
+            _build_toggle_href(type_id, qty, build_set, step_type_id, plan_id, adding=False)
+        )
         return f'<a class="flag flag-buy-toggle" href="{href}">Buy</a>'
 
     step_cards = "".join(f"""
@@ -83,9 +84,9 @@ def render_build_resolution_sections(
     def _material_flag(material: build_chain.RawMaterial) -> str:
         if not material.is_buildable:
             return '<span class="flag flag-buy">Bought</span>'
-        if not interactive:
-            return '<span class="flag flag-build">Build</span>'
-        href = escape(_build_toggle_href(type_id, qty, build_set, material.type_id, adding=True))
+        href = escape(
+            _build_toggle_href(type_id, qty, build_set, material.type_id, plan_id, adding=True)
+        )
         return f'<a class="flag flag-build" href="{href}">Build</a>'
 
     raw_cards = "".join(f"""
@@ -110,11 +111,13 @@ def render_build_resolution_sections(
 @router.get("", response_class=HTMLResponse)
 async def build_chooser(
     character: CharacterDocument | None = Depends(get_current_character_optional),
+    plan_id: str | None = Query(default=None),
 ) -> HTMLResponse:
-    body = """<div class="page">
+    items_href = f"/build/items?plan_id={plan_id}" if plan_id else "/build/items"
+    body = f"""<div class="page">
       <h1>What do you want to do?</h1>
       <div class="chooser-grid">
-        <a class="chooser-card" href="/build/items">
+        <a class="chooser-card" href="{escape(items_href)}">
           <div class="chooser-title">I know what I want to build</div>
           <div class="chooser-description">
             Search for an item - we'll work out the blueprint and material chain needed
@@ -138,6 +141,7 @@ async def item_search(
     character: CharacterDocument | None = Depends(get_current_character_optional),
     db: AsyncIOMotorDatabase = Depends(get_database),
     q: str = Query(default=""),
+    plan_id: str | None = Query(default=None),
 ) -> HTMLResponse:
     query = q.strip()
 
@@ -146,8 +150,9 @@ async def item_search(
         if not docs:
             results_html = '<p class="empty">No items match your search.</p>'
         else:
+            item_href_suffix = f"?plan_id={plan_id}" if plan_id else ""
             cards = "".join(f"""
-                  <a class="item-card" href="/build/items/{doc['_id']}">
+                  <a class="item-card" href="/build/items/{doc['_id']}{item_href_suffix}">
                     <div class="item-card-content">
                       <div class="item-title">
                         <img class="item-title-icon"
@@ -164,10 +169,14 @@ async def item_search(
     else:
         results_html = ""
 
+    plan_id_field = (
+        f'<input type="hidden" name="plan_id" value="{escape(plan_id)}">' if plan_id else ""
+    )
     search_form = f"""
       <form method="get" class="filters">
         <input type="text" name="q" value="{escape(query)}"
           placeholder="Search for an item to build" autofocus>
+        {plan_id_field}
       </form>
     """
     body = f"""<div class="page">
@@ -187,6 +196,7 @@ async def item_build_chain(
     settings: Settings = Depends(get_settings),
     qty: int = Query(default=1, ge=1),
     build: str = Query(default=""),
+    plan_id: str | None = Query(default=None),
 ) -> HTMLResponse:
     type_docs = await sde.type_docs(db, redis, settings, {type_id})
     type_doc = type_docs.get(type_id)
@@ -200,6 +210,9 @@ async def item_build_chain(
     qty_text = escape(str(qty))
     page_title = f"{item_name} - eve-build"
 
+    plan_id_field = (
+        f'<input type="hidden" name="plan_id" value="{escape(plan_id)}">' if plan_id else ""
+    )
     header = f"""
       <div class="header">
         <img class="icon" src="{item_icon}" alt="{item_name}"
@@ -210,6 +223,7 @@ async def item_build_chain(
             <label for="qty">Desired output</label>
             <input type="number" id="qty" name="qty" value="{qty_text}" min="1">
             <input type="hidden" name="build" value="{escape(build)}">
+            {plan_id_field}
             <button type="submit" class="btn btn-secondary">Update</button>
           </form>
         </div>
@@ -233,13 +247,18 @@ async def item_build_chain(
     )
 
     sections = render_build_resolution_sections(
-        resolution, type_id=type_id, qty=qty, build_set=build_set, interactive=True
+        resolution, type_id=type_id, qty=qty, build_set=build_set, plan_id=plan_id
     )
 
     add_to_plan_cta = ""
     if character is not None:
-        add_to_plan_href = escape(f"/plans/create?type_id={type_id}&qty={qty}&build={build}")
-        add_to_plan_cta = f'<a class="btn btn-primary" href="{add_to_plan_href}">Add to Plan</a>'
+        if plan_id:
+            add_to_plan_href = f"/plans/{plan_id}/add-job?type_id={type_id}&qty={qty}&build={build}"
+        else:
+            add_to_plan_href = f"/plans/create?type_id={type_id}&qty={qty}&build={build}"
+        add_to_plan_cta = (
+            f'<a class="btn btn-primary" href="{escape(add_to_plan_href)}">Add to Plan</a>'
+        )
 
     body = f"""<div class="page">{header}
       <div class="summary">{stats}</div>
