@@ -205,7 +205,7 @@ async def item_build_chain(
         return f'<a class="flag flag-build" href="{href}">Build</a>'
 
     raw_cards = "".join(f"""
-          <div class="item-card">
+          <div class="item-card{' item-card-buildable' if material.is_buildable else ''}">
             <div class="item-card-content">
               <div class="item-title">
                 <img class="item-title-icon" src="{escape(item_icon_url(material.type_id))}"

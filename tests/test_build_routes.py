@@ -129,6 +129,7 @@ async def test_item_build_chain_shows_only_first_level_materials_by_default(
         f'href="/build/items/{SHIP_TYPE_ID}?qty=1&amp;build={COMPONENT_TYPE_ID}"' in response.text
     )
     assert 'class="flag flag-build"' in response.text
+    assert 'class="item-card item-card-buildable"' in response.text
 
 
 async def test_item_build_chain_expands_toggled_material(
@@ -153,6 +154,7 @@ async def test_item_build_chain_shows_bought_flag_for_non_buildable_material(
 
     assert response.status_code == 200
     assert '<span class="flag flag-buy">Bought</span>' in response.text
+    assert "item-card-buildable" not in response.text
 
 
 async def test_item_build_chain_shows_not_buildable_message(
