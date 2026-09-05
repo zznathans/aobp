@@ -118,7 +118,7 @@ table.
 | eveBuild.session.maxAgeSeconds | int | `1209600` | Session cookie lifetime, in seconds. |
 | eveBuild.session.secretKey | string | `""` | Value used to sign the session cookie. Required unless `existingSecret` is set - generate one with `openssl rand -hex 32`. The chart stores it in a Secret rather than inlining it into the Deployment spec. |
 | eveBuild.tolerations | list | `[]` | Tolerations for the pod. |
-| mongodb.database | string | `"eve-build"` | Database the user is scoped to, via a readWrite role. |
+| mongodb.database | string | `"eve-build"` | Database the user is scoped to, via a readWrite role, and the database name the app is told to use (MONGODB_DATABASE). Ignored when `externalSecret.enabled` is true - in that mode the database name comes from the external secret's own `db_name` field instead, so it can't drift out of sync with what the assembled connection URI points at. |
 | mongodb.enabled | bool | `false` | Deploy a MongoDBCommunity custom resource for this release. Requires the MongoDB Community Kubernetes Operator (https://github.com/mongodb/mongodb-kubernetes-operator) already installed in the cluster - this chart only creates the CR, not the operator itself. |
 | mongodb.existingSecret | string | `""` | Name of an existing Secret holding a MongoDB connection string, used instead of `uri` when set - e.g. via External Secrets. Ignored when `enabled` or `externalSecret.enabled` is true. |
 | mongodb.existingSecretKey | string | `"uri"` | Key within `existingSecret` holding the connection string. |

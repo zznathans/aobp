@@ -28,8 +28,16 @@ callers should `{{- include "eve-build.env" . | nindent 12 }}` under their conta
 {{- $sessionSecretKey := (ne .Values.eveBuild.session.existingSecret "") | ternary .Values.eveBuild.session.existingSecretKey "secretKey" }}
 {{- $marketPricesSecretName := .Values.eveBuild.marketPrices.existingSecret | default (printf "%s-market-prices" .Release.Name) }}
 {{- $marketPricesSecretKey := (ne .Values.eveBuild.marketPrices.existingSecret "") | ternary .Values.eveBuild.marketPrices.existingSecretKey "apiKey" -}}
+{{- if and .Values.mongodb.externalSecret.enabled (not .Values.mongodb.enabled) }}
+- name: MONGODB_DATABASE
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Release.Name }}-mongodb-external
+      key: dbName
+{{- else }}
 - name: MONGODB_DATABASE
   value: {{ .Values.mongodb.database | quote }}
+{{- end }}
 {{- if .Values.mongodb.enabled }}
 - name: MONGODB_URI
   valueFrom:
