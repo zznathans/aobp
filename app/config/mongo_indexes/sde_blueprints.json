@@ -1,0 +1,9 @@
+{
+  "collection": "sde_blueprints",
+  "indexes": [
+    {
+      "name": "product_type_id",
+      "keys": [["product_type_id", 1]]
+    }
+  ]
+}
