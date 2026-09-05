@@ -1,10 +1,29 @@
+import hashlib
 from datetime import UTC, datetime
+from functools import lru_cache
 from html import escape
+from pathlib import Path
 
 from app.models.character import CharacterDocument
 from app.services.locations import LocationInfo
 
 BASE_STYLESHEET = "/static/base.css"
+
+_STATIC_DIR = Path(__file__).parent / "static"
+
+
+@lru_cache
+def _static_version(path: str) -> str:
+    """Short content hash for a /static/... path, appended as a `?v=` query param so a new
+    deploy's CSS isn't served stale from a layer that caches by URL alone (e.g. Cloudflare) -
+    the URL only changes when the file's content does."""
+    file_path = _STATIC_DIR / path.removeprefix("/static/")
+    digest = hashlib.sha256(file_path.read_bytes()).hexdigest()
+    return digest[:8]
+
+
+def static_url(path: str) -> str:
+    return f"{path}?v={_static_version(path)}"
 
 
 def gauge_color(percentage: float) -> str:
@@ -185,7 +204,9 @@ def render_page(
     nav = render_nav(character)
     stylesheets = [extra_stylesheet] if isinstance(extra_stylesheet, str) else extra_stylesheet
     stylesheet_links = "\n  ".join(
-        f'<link rel="stylesheet" href="{href}">' for href in [BASE_STYLESHEET, *stylesheets] if href
+        f'<link rel="stylesheet" href="{static_url(href)}">'
+        for href in [BASE_STYLESHEET, *stylesheets]
+        if href
     )
     return f"""<!doctype html>
 <html lang="en">
