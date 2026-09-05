@@ -535,7 +535,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aio-pika", specifier = ">=9.4,<10.0" },
+    { name = "aio-pika", specifier = ">=9.4,<11.0" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=24.0" },
     { name = "fakeredis", marker = "extra == 'dev'", specifier = ">=2.20" },
     { name = "fastapi", specifier = ">=0.110,<1.0" },

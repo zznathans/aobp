@@ -82,6 +82,7 @@ async def new_plan_picker(
       <form method="get" class="filters">
         <input type="text" name="q" value="{escape(query)}"
           placeholder="Search your blueprints and the catalog by name" autofocus>
+        <button type="submit" class="btn btn-secondary">Search</button>
       </form>
     """
 
@@ -112,23 +113,31 @@ async def new_plan_picker(
     type_docs = await sde.type_docs(db, redis, settings, {bp.type_id for bp in owned_blueprints})
 
     query_lower = query.lower()
-    seen_type_ids: set[int] = set()
-    rows = []
-    matches = 0
+    matched_owned = []
     for bp in owned_blueprints:
         name = str(type_docs.get(bp.type_id, {}).get("name", f"Type {bp.type_id}"))
         if query_lower not in name.lower():
             continue
-        matches += 1
-        if matches > 50:
+        matched_owned.append((bp, name))
+        if len(matched_owned) >= 50:
             break
+
+    sde_blueprints_for_owned = await sde.blueprint_docs(
+        db, redis, settings, {bp.type_id for bp, _ in matched_owned}
+    )
+
+    seen_type_ids: set[int] = set()
+    rows = []
+    for bp, name in matched_owned:
         seen_type_ids.add(bp.type_id)
+        product_type_id = sde_blueprints_for_owned.get(bp.type_id, {}).get("product_type_id")
         location_id = resolve_container_chain(bp.location_id, assets_by_item_id)
         row_id = f"o{bp.item_id}"
         rows.append(
             _picker_row_html(
                 row_id=row_id,
                 type_id=bp.type_id,
+                icon_type_id=cast(int | None, product_type_id) or bp.type_id,
                 name=name,
                 default_runs=bp.runs if bp.runs != -1 else 1,
                 default_me=bp.material_efficiency,
@@ -147,6 +156,7 @@ async def new_plan_picker(
             _picker_row_html(
                 row_id=row_id,
                 type_id=type_id,
+                icon_type_id=cast(int | None, doc.get("product_type_id")) or type_id,
                 name=str(doc["name"]),
                 default_runs=1,
                 default_me=0,
@@ -176,13 +186,14 @@ def _picker_row_html(
     *,
     row_id: str,
     type_id: int,
+    icon_type_id: int,
     name: str,
     default_runs: int,
     default_me: int,
     source_item_id: int | None,
     location_id: int | None,
 ) -> str:
-    icon = escape(item_icon_url(type_id))
+    icon = escape(item_icon_url(icon_type_id))
     escaped_name = escape(name)
     return f"""
       <div class="item-card picker-row">
@@ -361,10 +372,11 @@ def _line_card_html(plan_id: str, line_summary: plan.LineSummary) -> str:
       </form>
     """
 
+    icon_type_id = line_summary.product_type_id or line.type_id
     return f"""
       <div class="item-card">
         <img class="item-card-center-icon"
-          src="{escape(item_icon_url(line.type_id))}" alt="" aria-hidden="true"
+          src="{escape(item_icon_url(icon_type_id))}" alt="" aria-hidden="true"
           onerror="this.style.visibility='hidden'">
         <div class="item-card-content">
           <div class="item-title">{escape(line_summary.blueprint_name)}</div>
@@ -398,8 +410,13 @@ async def add_line_picker(
             cards = "".join(f"""
                   <form method="post" action="/plans/{escape(plan_id)}/lines" class="item-card">
                     <img class="item-card-center-icon"
-                      src="{escape(item_icon_url(cast(int, result["_id"])))}" alt=""
-                      aria-hidden="true" onerror="this.style.visibility='hidden'">
+                      src="{
+                        escape(
+                            item_icon_url(
+                                cast(int, result.get("product_type_id") or result["_id"])
+                            )
+                        )
+                    }" alt="" aria-hidden="true" onerror="this.style.visibility='hidden'">
                     <div class="item-card-content">
                       <div class="item-title">{escape(str(result["name"]))}</div>
                       <input type="hidden" name="type_id" value="{result["_id"]}">
@@ -424,6 +441,7 @@ async def add_line_picker(
       <form method="get" class="filters">
         <input type="text" name="q" value="{escape(query)}"
           placeholder="Search all blueprints by name" autofocus>
+        <button type="submit" class="btn btn-secondary">Search</button>
       </form>
     """
 

@@ -157,6 +157,7 @@ async def rename_plan(
 class LineSummary:
     line: PlanLine
     blueprint_name: str
+    product_type_id: int | None
     product_name: str
     requirements: list[manufacturing.MaterialRequirement]
     material_names: dict[int, str]
@@ -241,6 +242,7 @@ async def compute_plan_summary(
                 LineSummary(
                     line=line,
                     blueprint_name=blueprint_name,
+                    product_type_id=None,
                     product_name="",
                     requirements=[],
                     material_names={},
@@ -298,6 +300,7 @@ async def compute_plan_summary(
             LineSummary(
                 line=line,
                 blueprint_name=blueprint_name,
+                product_type_id=product_type_id,
                 product_name=product_name,
                 requirements=requirements,
                 material_names=material_names,
