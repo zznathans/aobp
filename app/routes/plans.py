@@ -198,7 +198,7 @@ def _picker_row_html(
     escaped_name = escape(name)
     return f"""
       <div class="item-card picker-row">
-        <img class="item-card-center-icon" src="{icon}" alt="" aria-hidden="true"
+        <img class="item-card-icon" src="{icon}" alt="" aria-hidden="true"
           onerror="this.style.visibility='hidden'">
         <div class="item-card-content">
           <label class="item-title">
@@ -281,7 +281,7 @@ async def plan_detail(
 
     aggregated_cards = "".join(f"""
           <div class="item-card">
-            <img class="item-card-center-icon" src="{escape(item_icon_url(material.type_id))}"
+            <img class="item-card-icon" src="{escape(item_icon_url(material.type_id))}"
               alt="" aria-hidden="true" onerror="this.style.visibility='hidden'">
             <div class="item-card-content">
               <div class="item-title">{escape(material.name)}</div>
@@ -381,7 +381,7 @@ def _line_card_html(plan_id: str, line_summary: plan.LineSummary) -> str:
     icon_type_id = line_summary.product_type_id or line.type_id
     return f"""
       <div class="item-card">
-        <img class="item-card-center-icon"
+        <img class="item-card-icon"
           src="{escape(item_icon_url(icon_type_id))}" alt="" aria-hidden="true"
           onerror="this.style.visibility='hidden'">
         <div class="item-card-content">
@@ -415,7 +415,7 @@ async def add_line_picker(
         else:
             cards = "".join(f"""
                   <form method="post" action="/plans/{escape(plan_id)}/lines" class="item-card">
-                    <img class="item-card-center-icon"
+                    <img class="item-card-icon"
                       src="{
                         escape(
                             item_icon_url(

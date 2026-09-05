@@ -427,7 +427,7 @@ async def catalog_blueprint_detail(
 
     materials_cards = "".join(f"""
           <div class="item-card">
-            <img class="item-card-center-icon" src="{escape(item_icon_url(material["type_id"]))}"
+            <img class="item-card-icon" src="{escape(item_icon_url(material["type_id"]))}"
               alt="" aria-hidden="true" onerror="this.style.visibility='hidden'">
             <div class="item-card-content">
               <div class="item-title">{escape(_material_name(material["type_id"]))}</div>
@@ -571,7 +571,7 @@ async def blueprint_detail(
             )
         material_cards.append(f"""
           <div class="item-card">
-            <img class="item-card-center-icon" src="{escape(item_icon_url(type_id))}"
+            <img class="item-card-icon" src="{escape(item_icon_url(type_id))}"
               alt="" aria-hidden="true" onerror="this.style.visibility='hidden'">
             <div class="item-card-content">
               <div class="item-title">{name}</div>
