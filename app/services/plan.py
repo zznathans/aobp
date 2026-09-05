@@ -185,6 +185,7 @@ class PlanSummary:
     total_cost: float
     total_output: float
     total_profit: float
+    total_time_seconds: float
 
 
 async def compute_plan_summary(
@@ -233,6 +234,7 @@ async def compute_plan_summary(
     total_cost = 0.0
     total_output = 0.0
     total_profit = 0.0
+    total_time_seconds = 0.0
 
     for line in plan.lines:
         sde_blueprint = sde_blueprints.get(line.type_id)
@@ -283,6 +285,9 @@ async def compute_plan_summary(
         total_cost += cost
         total_output += output
         total_profit += profit
+        total_time_seconds += (
+            cast(float, sde_blueprint.get("manufacturing_time_seconds") or 0) * line.runs
+        )
 
         for requirement in requirements:
             aggregated_needed[requirement.type_id] = (
@@ -330,4 +335,5 @@ async def compute_plan_summary(
         total_cost=total_cost,
         total_output=total_output,
         total_profit=total_profit,
+        total_time_seconds=total_time_seconds,
     )

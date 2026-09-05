@@ -15,6 +15,7 @@ from app.models.character import CharacterDocument
 from app.services import character_data, plan, sde
 from app.services.locations import resolve_container_chain
 from app.web import (
+    format_duration,
     format_isk,
     item_icon_url,
     item_line_html,
@@ -275,6 +276,7 @@ async def plan_detail(
         summary_stat_html(format_isk(summary.total_cost), "Total cost")
         + summary_stat_html(format_isk(summary.total_output), "Total output")
         + summary_stat_html(format_isk(summary.total_profit), "Total profit")
+        + summary_stat_html(format_duration(summary.total_time_seconds), "Total job time")
     )
 
     aggregated_cards = "".join(f"""

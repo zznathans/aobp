@@ -5,7 +5,7 @@ from httpx import Response
 from mongomock_motor import AsyncMongoMockClient
 
 from app.core.config import Settings
-from app.web import format_isk
+from app.web import format_duration, format_isk
 from tests.test_blueprints_routes import (
     CHARACTER_ID,
     STATION_ID,
@@ -147,6 +147,26 @@ async def test_plan_totals_equal_sum_of_per_line_costs(
     assert f'<div class="value">{format_isk(1250)}</div>' in response.text
     assert f'<div class="value">{format_isk(2800)}</div>' in response.text
     assert f'<div class="value">{format_isk(1550)}</div>' in response.text
+
+
+@respx.mock
+async def test_plan_shows_total_job_time_across_lines(
+    client: TestClient,
+    test_settings: Settings,
+    mongo_db: AsyncMongoMockClient,
+    rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+) -> None:
+    _log_in(client, test_settings, rsa_key_pair)
+    await _seed_two_blueprints_sharing_tritanium(mongo_db)
+    _mock_assets(test_settings, on_site=0, elsewhere=0)
+
+    plan_id = _create_plan(client)
+    response = client.get(f"/plans/{plan_id}")
+
+    assert response.status_code == 200
+    assert "Total job time" in response.text
+    # Rifter: 1200s/run * 2 runs = 2400s; Punisher: 1200s/run * 1 run = 1200s -> 3600s = 1h.
+    assert f'<div class="value">{format_duration(3600)}</div>' in response.text
 
 
 @respx.mock

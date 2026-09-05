@@ -46,6 +46,22 @@ def format_number(value: float) -> str:
     return f"{value:,.0f}"
 
 
+def format_duration(total_seconds: float) -> str:
+    seconds = int(total_seconds)
+    days, remainder = divmod(seconds, 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes = remainder // 60
+
+    parts = []
+    if days:
+        parts.append(f"{days}d")
+    if hours:
+        parts.append(f"{hours}h")
+    if minutes or not parts:
+        parts.append(f"{minutes}m")
+    return " ".join(parts)
+
+
 def format_isk(value: float) -> str:
     abs_value = abs(value)
     if abs_value >= 1_000_000_000:
