@@ -334,8 +334,10 @@ async def plan_detail(
     body = f"""<div class="page">{header}
       <div class="summary">{stats}</div>
       {add_form}
-      {aggregated_section}
-      {lines_section}
+      <div class="section-grid">
+        {aggregated_section}
+        {lines_section}
+      </div>
       {delete_form}
       <a class="btn btn-secondary back" href="/plans">Back to plans</a>
     </div>"""
@@ -360,16 +362,18 @@ def _line_card_html(plan_id: str, line_summary: plan.LineSummary) -> str:
         body = stats
 
     edit_form = f"""
-      <form method="post" action="/plans/{escape(plan_id)}/lines/{escape(line.line_id)}"
-        class="line-edit-form">
-        <input type="number" name="runs" value="{line.runs}" min="1" class="item-value">
-        <input type="number" name="material_efficiency" value="{line.material_efficiency}"
-          min="0" max="10" class="item-value">
-        <button type="submit" class="btn btn-secondary">Update</button>
-      </form>
-      <form method="post" action="/plans/{escape(plan_id)}/lines/{escape(line.line_id)}/delete">
-        <button type="submit" class="btn btn-danger">Remove</button>
-      </form>
+      <div class="line-actions">
+        <form method="post" action="/plans/{escape(plan_id)}/lines/{escape(line.line_id)}"
+          class="line-edit-form">
+          <input type="number" name="runs" value="{line.runs}" min="1" class="item-value">
+          <input type="number" name="material_efficiency" value="{line.material_efficiency}"
+            min="0" max="10" class="item-value">
+          <button type="submit" class="btn btn-secondary">Update</button>
+        </form>
+        <form method="post" action="/plans/{escape(plan_id)}/lines/{escape(line.line_id)}/delete">
+          <button type="submit" class="btn btn-danger">Remove</button>
+        </form>
+      </div>
     """
 
     icon_type_id = line_summary.product_type_id or line.type_id
