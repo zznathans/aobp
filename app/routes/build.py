@@ -129,6 +129,7 @@ async def item_build_chain(
     resolution = await build_chain.resolve_build_chain(db, redis, settings, type_id, qty)
     item_name = escape(resolution.target_name)
     item_icon = escape(item_icon_url(type_id))
+    qty_text = escape(str(qty))
     page_title = f"{item_name} - eve-build"
 
     header = f"""
@@ -137,7 +138,7 @@ async def item_build_chain(
           onerror="this.style.visibility='hidden'">
         <div>
           <div class="name">{item_name}</div>
-          <div class="meta">Building {qty} &times;</div>
+          <div class="meta">Building {qty_text} &times;</div>
         </div>
       </div>
     """
