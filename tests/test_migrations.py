@@ -133,8 +133,6 @@ async def test_run_migrations_populates_raw_and_lookup_collections(tmp_path: Pat
         "0006_build_sde_planet_schematics",
         "0007_rebuild_sde_planet_schematics",
         "0008_add_reaction_formulas_to_sde_blueprints",
-        "0009_create_market_order_indexes",
-        "0010_create_plans_indexes",
     }
 
     assert await db["invTypes"].count_documents({}) == 5
@@ -223,7 +221,7 @@ async def test_run_migrations_is_idempotent(tmp_path: Path) -> None:
     await run_migrations(db, settings)
     await run_migrations(db, settings)
 
-    assert await db["_migrations"].count_documents({}) == 14
+    assert await db["_migrations"].count_documents({}) == 12
     assert await db["sde_blueprints"].count_documents({}) == 2
 
 
@@ -309,7 +307,5 @@ async def test_import_raw_sde_tables_resumes_after_partial_failure(
         "0006_build_sde_planet_schematics",
         "0007_rebuild_sde_planet_schematics",
         "0008_add_reaction_formulas_to_sde_blueprints",
-        "0009_create_market_order_indexes",
-        "0010_create_plans_indexes",
     }
     assert await db["invTypes"].count_documents({}) == 5

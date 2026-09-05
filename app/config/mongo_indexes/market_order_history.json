@@ -1,0 +1,14 @@
+{
+  "collection": "market_order_history",
+  "indexes": [
+    {
+      "name": "type_id_region_id_scraped_at",
+      "keys": [["type_id", 1], ["region_id", 1], ["scraped_at", 1]]
+    },
+    {
+      "name": "order_id_scrape_run_id_unique",
+      "keys": [["order_id", 1], ["scrape_run_id", 1]],
+      "unique": true
+    }
+  ]
+}

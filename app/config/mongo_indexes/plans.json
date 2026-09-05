@@ -1,0 +1,13 @@
+{
+  "collection": "plans",
+  "indexes": [
+    {
+      "name": "character_id",
+      "keys": [["character_id", 1]]
+    },
+    {
+      "name": "character_id_updated_at",
+      "keys": [["character_id", 1], ["updated_at", -1]]
+    }
+  ]
+}
