@@ -40,12 +40,12 @@ h2 { font-size: 1rem; margin: 0 0 0.75rem; }
 .item-card {
   background: #14161c; border: 1px solid #2a2e37; border-radius: 8px;
   padding: 0.85rem 1rem; font-size: 0.85rem;
-  display: flex; align-items: flex-start; gap: 0.7rem;
-  text-decoration: none; color: inherit;
+  position: relative; overflow: hidden;
+  display: block; text-decoration: none; color: inherit;
 }
 a.item-card:hover { border-color: #4c8bf5; }
 .item-card-content {
-  display: flex; flex-direction: column; gap: 0.45rem; flex: 1 1 auto; min-width: 0;
+  position: relative; z-index: 1; display: flex; flex-direction: column; gap: 0.45rem;
 }
 .item-card .item-title {
   font-weight: 600; display: flex; align-items: center; gap: 0.5rem;
@@ -53,8 +53,9 @@ a.item-card:hover { border-color: #4c8bf5; }
 .item-card .item-title-icon {
   width: 30px; height: 30px; border-radius: 4px; flex-shrink: 0;
 }
-.item-card .item-card-icon {
-  width: 40px; height: 40px; border-radius: 6px; flex-shrink: 0; background: #1a1d24;
+.item-card .item-card-center-icon {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 56px; height: 56px; opacity: 0.8; pointer-events: none; z-index: 0;
 }
 .item-card .item-line {
   color: #9aa4b2; font-size: 0.78rem; display: flex; justify-content: space-between;

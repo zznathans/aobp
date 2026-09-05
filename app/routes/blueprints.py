@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass
 from html import escape
 from typing import cast
@@ -13,7 +14,7 @@ from app.db.mongo import get_database
 from app.db.redis import get_redis
 from app.deps import get_current_character, get_current_character_optional
 from app.models.character import CharacterDocument
-from app.services import character_data, locations, manufacturing, market_prices, sde
+from app.services import character_data, locations, market_prices, sde
 from app.services.locations import resolve_container_chain as _resolve_container_chain
 from app.web import (
     format_isk,
@@ -24,8 +25,6 @@ from app.web import (
     location_label_html,
     location_label_text,
     render_page,
-    section_html,
-    summary_stat_html,
 )
 
 router = APIRouter(prefix="/blueprints", tags=["blueprints"])
@@ -36,8 +35,29 @@ _DETAIL_STYLE = ["/static/card.css", "/static/blueprints-detail.css"]
 
 _REACTIONS_ACTIVITY_ID = 11
 
-_summary_stat = summary_stat_html
-_section = section_html
+
+def _summary_stat(value: str, label: str) -> str:
+    return f"""
+      <div class="summary-stat">
+        <div class="value">{value}</div>
+        <div class="label">{escape(label)}</div>
+      </div>
+    """
+
+
+def _section(title: str, cards_html: str) -> str:
+    if not cards_html:
+        return ""
+    return f"""
+      <div class="section-box">
+        <h2>{escape(title)}</h2>
+        <div class="item-grid">{cards_html}</div>
+      </div>
+    """
+
+
+def _material_quantity_per_run(base_quantity: int, material_efficiency: int) -> int:
+    return max(1, math.ceil(base_quantity * (1 - material_efficiency / 100)))
 
 
 def _tech_level_label(is_reaction: bool, is_t2: bool) -> str:
@@ -390,8 +410,9 @@ async def catalog_blueprint_detail(
     prices = await market_prices.list_market_prices(db, price_type_ids)
     price_by_type_id: dict[int, dict[str, object]] = {cast(int, p["_id"]): p for p in prices}
 
-    cost_per_run, output_per_run, profit_per_run = manufacturing.compute_cost_output_profit(
-        materials, product_type_id, product_quantity, 1, 0, price_by_type_id
+    cost_per_run = sum(
+        material["quantity"] * market_prices.unit_price(price_by_type_id.get(material["type_id"]))
+        for material in materials
     )
     price_figures = _summary_stat(format_isk(cost_per_run), "Cost / run")
 
@@ -399,8 +420,11 @@ async def catalog_blueprint_detail(
     if product_type_id is not None:
         product_type_docs = await sde.type_docs(db, redis, settings, {product_type_id})
         product_name = str(product_type_docs.get(product_type_id, {}).get("name", ""))
+        output_per_run = product_quantity * market_prices.unit_price(
+            price_by_type_id.get(product_type_id)
+        )
         price_figures += _summary_stat(format_isk(output_per_run), "Output / run") + _summary_stat(
-            format_isk(profit_per_run), "Profit / run"
+            format_isk(output_per_run - cost_per_run), "Profit / run"
         )
 
     produced_text = (
@@ -427,7 +451,7 @@ async def catalog_blueprint_detail(
 
     materials_cards = "".join(f"""
           <div class="item-card">
-            <img class="item-card-icon" src="{escape(item_icon_url(material["type_id"]))}"
+            <img class="item-card-center-icon" src="{escape(item_icon_url(material["type_id"]))}"
               alt="" aria-hidden="true" onerror="this.style.visibility='hidden'">
             <div class="item-card-content">
               <div class="item-title">{escape(_material_name(material["type_id"]))}</div>
@@ -509,18 +533,18 @@ async def blueprint_detail(
     prices = await market_prices.list_market_prices(db, price_type_ids)
     price_by_type_id: dict[int, dict[str, object]] = {cast(int, p["_id"]): p for p in prices}
 
-    cost_per_run, output_per_run, profit_per_run = manufacturing.compute_cost_output_profit(
-        materials,
-        product_type_id,
-        product_quantity,
-        1,
-        blueprint.material_efficiency,
-        price_by_type_id,
+    cost_per_run = sum(
+        _material_quantity_per_run(m["quantity"], blueprint.material_efficiency)
+        * market_prices.unit_price(price_by_type_id.get(m["type_id"]))
+        for m in materials
     )
     price_figures = _summary_stat(format_isk(cost_per_run), "Cost / run")
     if product_type_id is not None:
+        output_per_run = product_quantity * market_prices.unit_price(
+            price_by_type_id.get(product_type_id)
+        )
         price_figures += _summary_stat(format_isk(output_per_run), "Output / run") + _summary_stat(
-            format_isk(profit_per_run), "Profit / run"
+            format_isk(output_per_run - cost_per_run), "Profit / run"
         )
 
     header = f"""
@@ -547,40 +571,42 @@ async def blueprint_detail(
     material_type_ids = {m["type_id"] for m in materials}
     material_docs = await sde.type_docs(db, redis, settings, material_type_ids)
 
-    requirements = manufacturing.compute_material_requirements(
-        materials, blueprint.material_efficiency, 1, on_site_totals, global_totals
-    )
-    on_site_buildable, global_buildable = manufacturing.compute_buildable(requirements)
-
     material_cards = []
-    for requirement in requirements:
-        type_id = requirement.type_id
+    on_site_buildable = math.inf
+    global_buildable = math.inf
+    for material in materials:
+        type_id = material["type_id"]
+        needed = _material_quantity_per_run(material["quantity"], blueprint.material_efficiency)
+        on_site_have = on_site_totals.get(type_id, 0)
+        global_have = global_totals.get(type_id, 0)
+        on_site_buildable = min(on_site_buildable, on_site_have // needed)
+        global_buildable = min(global_buildable, global_have // needed)
+        on_site_missing = max(0, needed - on_site_have)
+        global_missing = max(0, needed - global_have)
         material_name = material_docs.get(type_id, {}).get("name")
         name = escape(str(material_name or f"Type {type_id}"))
-        on_site_cell: str = str(requirement.on_site_have)
-        if requirement.on_site_missing:
-            on_site_cell = (
-                f'{requirement.on_site_have} <span class="short">'
-                f"(-{requirement.on_site_missing})</span>"
-            )
-        global_cell: str = str(requirement.global_have)
-        if requirement.global_missing:
-            global_cell = (
-                f'{requirement.global_have} <span class="short">'
-                f"(-{requirement.global_missing})</span>"
-            )
+        on_site_cell: str = str(on_site_have)
+        if on_site_missing:
+            on_site_cell = f'{on_site_have} <span class="short">(-{on_site_missing})</span>'
+        global_cell: str = str(global_have)
+        if global_missing:
+            global_cell = f'{global_have} <span class="short">(-{global_missing})</span>'
         material_cards.append(f"""
           <div class="item-card">
-            <img class="item-card-icon" src="{escape(item_icon_url(type_id))}"
+            <img class="item-card-center-icon" src="{escape(item_icon_url(type_id))}"
               alt="" aria-hidden="true" onerror="this.style.visibility='hidden'">
             <div class="item-card-content">
               <div class="item-title">{name}</div>
-              {item_line_html("Needed / run", str(requirement.needed))}
+              {item_line_html("Needed / run", str(needed))}
               {item_line_html("On-site", on_site_cell)}
               {item_line_html("All assets", global_cell)}
             </div>
           </div>
         """)
+
+    if not materials:
+        on_site_buildable = 0
+        global_buildable = 0
 
     materials_section = _section("Materials", "".join(material_cards))
 

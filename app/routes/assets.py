@@ -150,10 +150,14 @@ def _category_rows(
         item_href = escape(f"/assets/{type_id}")
         row_html = f"""
           <a class="item-card" href="{item_href}">
-            <img class="item-card-icon" src="{icon}" alt="" aria-hidden="true"
+            <img class="item-card-center-icon" src="{icon}" alt="" aria-hidden="true"
               onerror="this.style.visibility='hidden'">
             <div class="item-card-content">
-              <div class="item-title">{name}</div>
+              <div class="item-title">
+                <img class="item-title-icon" src="{icon}" alt=""
+                  onerror="this.style.visibility='hidden'">
+                {name}
+              </div>
               {item_line_html("Quantity", format_number(quantity))}
               {item_line_html("Volume", f"{format_number(row_volume)} m3")}
               {item_line_html("Locations", str(location_count))}
@@ -402,10 +406,14 @@ async def location_detail(
                 row_volume,
                 f"""
                   <a class="item-card" href="{item_href}">
-                    <img class="item-card-icon" src="{icon}" alt="" aria-hidden="true"
+                    <img class="item-card-center-icon" src="{icon}" alt="" aria-hidden="true"
                       onerror="this.style.visibility='hidden'">
                     <div class="item-card-content">
-                      <div class="item-title">{name}</div>
+                      <div class="item-title">
+                        <img class="item-title-icon" src="{icon}" alt=""
+                          onerror="this.style.visibility='hidden'">
+                        {name}
+                      </div>
                       {item_line_html("Quantity", format_number(quantity))}
                       {item_line_html("Volume", f"{format_number(row_volume)} m3")}
                       {item_line_html("Est. value", format_isk(row_value))}

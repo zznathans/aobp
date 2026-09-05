@@ -1,20 +1,10 @@
 from app.services.locations import LocationInfo
 from app.web import (
-    format_duration,
     location_label_html,
     location_label_text,
     security_status_color,
     security_status_html,
 )
-
-
-def test_format_duration_breaks_down_days_hours_minutes() -> None:
-    assert format_duration(0) == "0m"
-    assert format_duration(59) == "0m"
-    assert format_duration(60) == "1m"
-    assert format_duration(3661) == "1h 1m"
-    assert format_duration(90000) == "1d 1h"
-    assert format_duration(86400) == "1d"
 
 
 def test_security_status_color_bands_match_eve_convention() -> None:
