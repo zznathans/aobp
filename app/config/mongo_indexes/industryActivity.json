@@ -1,0 +1,13 @@
+{
+  "collection": "industryActivityMaterials",
+  "indexes": [
+    {
+      "name": "typeID",
+      "keys": [["typeID", 1]]
+    },
+    {
+      "name": "activityID",
+      "keys": [["activityID", 1]]
+    }
+  ]
+}
