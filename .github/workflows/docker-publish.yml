@@ -2,8 +2,9 @@ name: Docker Publish
 
 # Pushes the app image to GHCR. Triggered by a published GitHub Release so
 # the image tag lines up with a real version rather than every commit to
-# main - cut a release to publish. docker-build.yml (push/PR) stays
-# build-only verification and is unaffected by this.
+# main - cut a release to publish. docker-build.yml (pull_request) is
+# separate and unaffected by this: it publishes its own pr-<number> tag for
+# same-repo PRs, but still builds without pushing as its check for forks.
 #
 # workflow_dispatch is a fallback for re-running a publish whose
 # release:published event never arrived (e.g. an Actions outage) - dispatch
