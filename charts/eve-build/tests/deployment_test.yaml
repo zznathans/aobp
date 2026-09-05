@@ -175,6 +175,32 @@ tests:
             name: MONGODB_DATABASE
             value: somedb
 
+  - it: sources MONGODB_DATABASE from the ExternalSecret's dbName key when mongodb.externalSecret.enabled
+    set:
+      mongodb.externalSecret.enabled: true
+      mongodb.database: somedb
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0]
+          value:
+            name: MONGODB_DATABASE
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-mongodb-external
+                key: dbName
+
+  - it: mongodb.enabled takes precedence over externalSecret.enabled for MONGODB_DATABASE too
+    set:
+      mongodb.enabled: true
+      mongodb.externalSecret.enabled: true
+      mongodb.database: somedb
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0]
+          value:
+            name: MONGODB_DATABASE
+            value: somedb
+
   - it: defaults imagePullPolicy to IfNotPresent
     asserts:
       - equal:
