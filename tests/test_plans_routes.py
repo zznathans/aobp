@@ -1,11 +1,18 @@
 import respx
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
+from httpx import Response
 from mongomock_motor import AsyncMongoMockClient
 
 from app.core.config import Settings
 from app.web import format_isk
-from tests.test_blueprints_routes import CHARACTER_ID, _log_in, _mock_assets
+from tests.test_blueprints_routes import (
+    CHARACTER_ID,
+    STATION_ID,
+    _log_in,
+    _mock_assets,
+    _mock_station_name,
+)
 
 RIFTER_BLUEPRINT_TYPE_ID = 588
 RIFTER_PRODUCT_TYPE_ID = 587
@@ -257,3 +264,89 @@ async def test_plans_list_shows_saved_plans(
 
     assert response.status_code == 200
     assert "Ship Run" in response.text
+
+
+def _mock_many_owned_blueprints(settings: Settings, count: int) -> None:
+    # A character can own hundreds of blueprints - the picker must not turn each one into
+    # several hidden form fields regardless of whether it matches a search, or a large
+    # collection blows past Starlette's per-request form field cap (see regression test below).
+    respx.get(
+        f"{settings.esi_base_url}/characters/{CHARACTER_ID}/blueprints", params={"page": 1}
+    ).mock(
+        return_value=Response(
+            200,
+            headers={"X-Pages": "1"},
+            json=[
+                {
+                    "item_id": 10_000 + i,
+                    "type_id": RIFTER_BLUEPRINT_TYPE_ID,
+                    "location_id": STATION_ID,
+                    "location_flag": "Hangar",
+                    "quantity": -1,
+                    "runs": -1,
+                    "material_efficiency": 0,
+                    "time_efficiency": 0,
+                }
+                for i in range(count)
+            ],
+        )
+    )
+
+
+@respx.mock
+async def test_new_plan_picker_does_not_list_owned_blueprints_without_a_search(
+    client: TestClient,
+    test_settings: Settings,
+    mongo_db: AsyncMongoMockClient,
+    rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+) -> None:
+    _log_in(client, test_settings, rsa_key_pair)
+    await _seed_two_blueprints_sharing_tritanium(mongo_db)
+    _mock_many_owned_blueprints(test_settings, 400)
+    _mock_assets(test_settings, on_site=0, elsewhere=0)
+    _mock_station_name(test_settings)
+
+    response = client.get("/plans/new")
+
+    assert response.status_code == 200
+    assert "Rifter Blueprint" not in response.text
+    assert "Search above" in response.text
+
+
+@respx.mock
+async def test_new_plan_picker_filters_owned_blueprints_by_search_and_creates_plan(
+    client: TestClient,
+    test_settings: Settings,
+    mongo_db: AsyncMongoMockClient,
+    rsa_key_pair: tuple[rsa.RSAPrivateKey, dict[str, object]],
+) -> None:
+    _log_in(client, test_settings, rsa_key_pair)
+    await _seed_two_blueprints_sharing_tritanium(mongo_db)
+    _mock_many_owned_blueprints(test_settings, 400)
+    _mock_assets(test_settings, on_site=0, elsewhere=0)
+    _mock_station_name(test_settings)
+
+    response = client.get("/plans/new", params={"q": "rifter"})
+
+    assert response.status_code == 200
+    assert "Rifter Blueprint" in response.text
+    assert "Punisher Blueprint" not in response.text
+    # A large owned collection must not flood the form with hidden fields for every
+    # non-matching row - the picker only renders (and caps) rows that match the search.
+    assert response.text.count('name="include__') <= 50 + 1
+
+    row_id = "o10000"
+    create_response = client.post(
+        "/plans",
+        data={
+            "name": "From picker",
+            f"include__{row_id}": "1",
+            f"type_id__{row_id}": str(RIFTER_BLUEPRINT_TYPE_ID),
+            f"runs__{row_id}": "1",
+            f"me__{row_id}": "0",
+            f"source_item_id__{row_id}": "10000",
+            f"location_id__{row_id}": str(STATION_ID),
+        },
+        follow_redirects=False,
+    )
+    assert create_response.status_code == 303

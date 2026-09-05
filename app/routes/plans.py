@@ -78,16 +78,51 @@ async def new_plan_picker(
 ) -> HTMLResponse:
     query = q.strip()
 
+    search_form = f"""
+      <form method="get" class="filters">
+        <input type="text" name="q" value="{escape(query)}"
+          placeholder="Search your blueprints and the catalog by name" autofocus>
+      </form>
+    """
+
+    if len(query) < 2:
+        rows_html = (
+            '<p class="empty">Search above to add owned or catalog blueprints to the plan.</p>'
+        )
+        if query:
+            rows_html = '<p class="empty">Keep typing - search needs at least 2 characters.</p>'
+        body = f"""<div class="page">
+          <h1>New plan</h1>
+          {search_form}
+          <form method="post" action="/plans" class="picker-form">
+            <input type="text" name="name" placeholder="Plan name" required
+              class="plan-name-input">
+            {rows_html}
+            <button type="submit" class="btn btn-primary">Create plan</button>
+          </form>
+        </div>"""
+        return HTMLResponse(render_page("New plan", body, _LIST_STYLE, character=character))
+
+    # Only render rows matching the search - listing every owned blueprint unconditionally
+    # can produce thousands of hidden form fields for characters with large collections,
+    # exceeding Starlette's per-request form field cap.
     owned_blueprints, _ = await character_data.get_merged_blueprints(db, redis, settings, character)
     assets, _ = await character_data.get_merged_assets(db, redis, settings, character)
     assets_by_item_id = {asset.item_id: asset for asset in assets}
     type_docs = await sde.type_docs(db, redis, settings, {bp.type_id for bp in owned_blueprints})
 
+    query_lower = query.lower()
     seen_type_ids: set[int] = set()
     rows = []
+    matches = 0
     for bp in owned_blueprints:
-        seen_type_ids.add(bp.type_id)
         name = str(type_docs.get(bp.type_id, {}).get("name", f"Type {bp.type_id}"))
+        if query_lower not in name.lower():
+            continue
+        matches += 1
+        if matches > 50:
+            break
+        seen_type_ids.add(bp.type_id)
         location_id = resolve_container_chain(bp.location_id, assets_by_item_id)
         row_id = f"o{bp.item_id}"
         rows.append(
@@ -102,34 +137,26 @@ async def new_plan_picker(
             )
         )
 
-    if len(query) >= 2:
-        catalog_docs = await sde.search_blueprints_by_name(db, query)
-        for doc in catalog_docs:
-            type_id = cast(int, doc["_id"])
-            if type_id in seen_type_ids:
-                continue
-            row_id = f"c{type_id}"
-            rows.append(
-                _picker_row_html(
-                    row_id=row_id,
-                    type_id=type_id,
-                    name=str(doc["name"]),
-                    default_runs=1,
-                    default_me=0,
-                    source_item_id=None,
-                    location_id=None,
-                )
+    catalog_docs = await sde.search_blueprints_by_name(db, query)
+    for doc in catalog_docs:
+        type_id = cast(int, doc["_id"])
+        if type_id in seen_type_ids:
+            continue
+        row_id = f"c{type_id}"
+        rows.append(
+            _picker_row_html(
+                row_id=row_id,
+                type_id=type_id,
+                name=str(doc["name"]),
+                default_runs=1,
+                default_me=0,
+                source_item_id=None,
+                location_id=None,
             )
-
-    search_form = f"""
-      <form method="get" class="filters">
-        <input type="text" name="q" value="{escape(query)}"
-          placeholder="Search all blueprints by name">
-      </form>
-    """
+        )
 
     if not rows:
-        rows_html = '<p class="empty">No blueprints to add yet - search above.</p>'
+        rows_html = '<p class="empty">No blueprints match your search.</p>'
     else:
         rows_html = f'<div class="item-grid">{"".join(rows)}</div>'
 
