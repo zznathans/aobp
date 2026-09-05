@@ -4,6 +4,11 @@
     {
       "name": "region_id_type_id",
       "keys": [["region_id", 1], ["type_id", 1]]
+    },
+    {
+      "name": "order_id_scrape_run_id_unique",
+      "keys": [["order_id", 1], ["scrape_run_id", 1]],
+      "unique": true
     }
   ]
 }

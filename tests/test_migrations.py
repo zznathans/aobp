@@ -133,6 +133,7 @@ async def test_run_migrations_populates_raw_and_lookup_collections(tmp_path: Pat
         "0006_build_sde_planet_schematics",
         "0007_rebuild_sde_planet_schematics",
         "0008_add_reaction_formulas_to_sde_blueprints",
+        "0009_drop_market_order_history",
     }
 
     assert await db["invTypes"].count_documents({}) == 5
@@ -213,6 +214,26 @@ async def test_0007_backfills_schematics_when_0006_already_recorded_empty(
     }
 
 
+async def test_0009_drops_market_order_history_collection(tmp_path: Path) -> None:
+    _write_fixtures(tmp_path)
+    db = AsyncMongoMockClient()["test"]
+    await db["market_order_history"].insert_one({"order_id": 1})
+
+    await run_migrations(db, _settings(tmp_path))
+
+    assert "market_order_history" not in await db.list_collection_names()
+
+
+async def test_0009_is_a_no_op_when_collection_never_existed(tmp_path: Path) -> None:
+    _write_fixtures(tmp_path)
+    db = AsyncMongoMockClient()["test"]
+
+    await run_migrations(db, _settings(tmp_path))
+
+    applied_ids = {doc["_id"] async for doc in db["_migrations"].find({}, {"_id": 1})}
+    assert "0009_drop_market_order_history" in applied_ids
+
+
 async def test_run_migrations_is_idempotent(tmp_path: Path) -> None:
     _write_fixtures(tmp_path)
     db = AsyncMongoMockClient()["test"]
@@ -221,7 +242,7 @@ async def test_run_migrations_is_idempotent(tmp_path: Path) -> None:
     await run_migrations(db, settings)
     await run_migrations(db, settings)
 
-    assert await db["_migrations"].count_documents({}) == 12
+    assert await db["_migrations"].count_documents({}) == 13
     assert await db["sde_blueprints"].count_documents({}) == 2
 
 
@@ -307,5 +328,6 @@ async def test_import_raw_sde_tables_resumes_after_partial_failure(
         "0006_build_sde_planet_schematics",
         "0007_rebuild_sde_planet_schematics",
         "0008_add_reaction_formulas_to_sde_blueprints",
+        "0009_drop_market_order_history",
     }
     assert await db["invTypes"].count_documents({}) == 5

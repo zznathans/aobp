@@ -1,6 +1,6 @@
-"""Long-running worker: consumes market-order results (order chunks + region-complete markers)
-and persists them to MongoDB - upserting the live `market_orders` snapshot, appending to
-`market_order_history`, and sweeping stale snapshot docs once a region's scrape run is complete.
+"""Long-running worker: consumes market-order result chunks and dumps them wholesale into the
+`market_orders` collection - one row per order per scrape run, deduped on redelivery. Old rows
+are expected to be expired by a TTL index rather than swept here.
 
 Usage:
     python -m app.scripts.market_orders_write_worker
@@ -12,12 +12,11 @@ import logging
 from app.core.config import get_settings
 from app.db.mongo import create_mongo_client
 from app.db.rabbitmq import (
-    OrdersChunkMessage,
     create_rabbitmq_connection,
     declare_market_order_queues,
-    decode_result_message,
+    decode_orders_chunk,
 )
-from app.services.market_orders import apply_orders_chunk, apply_region_complete
+from app.services.market_orders import apply_orders_chunk
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("eve-build.market_orders.write_worker")
@@ -39,18 +38,9 @@ async def main() -> None:
 
         async with results_queue.iterator() as messages:
             async for message in messages:
-                result = decode_result_message(message.body)
-                if isinstance(result, OrdersChunkMessage):
-                    count = await apply_orders_chunk(db, result)
-                    logger.info("Upserted %s orders for region %s", count, result.region_id)
-                else:
-                    deleted = await apply_region_complete(db, result)
-                    logger.info(
-                        "Region %s scrape complete (%s orders), swept %s stale orders",
-                        result.region_id,
-                        result.order_count,
-                        deleted,
-                    )
+                result = decode_orders_chunk(message.body)
+                count = await apply_orders_chunk(db, result)
+                logger.info("Inserted %s orders for region %s", count, result.region_id)
                 await message.ack()
 
     mongo_client.close()
