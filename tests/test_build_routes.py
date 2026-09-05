@@ -141,8 +141,8 @@ async def test_item_build_chain_expands_toggled_material(
 
     assert response.status_code == 200
     assert "Tritanium" in response.text
-    assert f'href="/build/items/{SHIP_TYPE_ID}?qty=1"' in response.text  # Buy-instead toggle
-    assert 'class="flag flag-buy" href=' in response.text
+    assert f'href="/build/items/{SHIP_TYPE_ID}?qty=1"' in response.text  # Buy toggle (collapse)
+    assert '<a class="flag flag-buy-toggle" href=' in response.text
 
 
 async def test_item_build_chain_shows_bought_flag_for_non_buildable_material(

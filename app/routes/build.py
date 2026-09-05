@@ -180,7 +180,7 @@ async def item_build_chain(
         if step_type_id == type_id:
             return ""
         href = escape(_build_toggle_href(type_id, qty, build_set, step_type_id, adding=False))
-        return f'<a class="flag flag-buy" href="{href}">Buy instead</a>'
+        return f'<a class="flag flag-buy-toggle" href="{href}">Buy</a>'
 
     step_cards = "".join(f"""
           <div class="item-card">
