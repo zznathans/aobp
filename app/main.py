@@ -42,52 +42,56 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.settings = settings
     logger.info("Loaded settings (mongodb_database=%s)", settings.mongodb_database)
 
-    app.state.mongo_client = create_mongo_client(settings)
-    logger.info("MongoDB client created for database %r", settings.mongodb_database)
-
-    app.state.redis = create_redis_client(settings)
-    if app.state.redis is not None:
-        logger.info("Redis client created (redis_url=%s)", settings.redis_url)
-    else:
-        logger.info("Redis disabled, skipping cache client")
-
-    app.state.rabbitmq = await create_rabbitmq_connection(settings)
-    if app.state.rabbitmq is not None:
-        logger.info("RabbitMQ connection established")
-    else:
-        logger.info("RabbitMQ disabled, skipping connection")
-
-    if settings.run_migrations_on_startup:
-        logger.info("Running database migrations")
-        await run_migrations(app.state.mongo_client[settings.mongodb_database], settings)
-        logger.info("Database migrations complete")
-    else:
-        logger.info("Skipping database migrations (run_migrations_on_startup=False)")
-
-    if settings.sync_indexes_on_startup:
-        logger.info("Syncing MongoDB indexes")
-        await sync_indexes(
-            app.state.mongo_client[settings.mongodb_database], settings.mongo_indexes_dir
-        )
-        logger.info("MongoDB index sync complete")
-    else:
-        logger.info("Skipping MongoDB index sync (sync_indexes_on_startup=False)")
-
+    app.state.mongo_client = None
+    app.state.redis = None
+    app.state.rabbitmq = None
     db_gauges_task: asyncio.Task[None] | None = None
-    if settings.metrics_enabled and settings.metrics_db_gauges_enabled:
-        db_gauges_task = asyncio.create_task(
-            refresh_db_gauges_periodically(
-                app.state.mongo_client[settings.mongodb_database],
+
+    try:
+        app.state.mongo_client = create_mongo_client(settings)
+        logger.info("MongoDB client created for database %r", settings.mongodb_database)
+
+        app.state.redis = create_redis_client(settings)
+        if app.state.redis is not None:
+            logger.info("Redis client created (redis_url=%s)", settings.redis_url)
+        else:
+            logger.info("Redis disabled, skipping cache client")
+
+        app.state.rabbitmq = await create_rabbitmq_connection(settings)
+        if app.state.rabbitmq is not None:
+            logger.info("RabbitMQ connection established")
+        else:
+            logger.info("RabbitMQ disabled, skipping connection")
+
+        if settings.run_migrations_on_startup:
+            logger.info("Running database migrations")
+            await run_migrations(app.state.mongo_client[settings.mongodb_database], settings)
+            logger.info("Database migrations complete")
+        else:
+            logger.info("Skipping database migrations (run_migrations_on_startup=False)")
+
+        if settings.sync_indexes_on_startup:
+            logger.info("Syncing MongoDB indexes")
+            await sync_indexes(
+                app.state.mongo_client[settings.mongodb_database], settings.mongo_indexes_dir
+            )
+            logger.info("MongoDB index sync complete")
+        else:
+            logger.info("Skipping MongoDB index sync (sync_indexes_on_startup=False)")
+
+        if settings.metrics_enabled and settings.metrics_db_gauges_enabled:
+            db_gauges_task = asyncio.create_task(
+                refresh_db_gauges_periodically(
+                    app.state.mongo_client[settings.mongodb_database],
+                    settings.metrics_gauge_refresh_seconds,
+                )
+            )
+            logger.info(
+                "Started DB-derived gauge refresh loop (interval=%ss)",
                 settings.metrics_gauge_refresh_seconds,
             )
-        )
-        logger.info(
-            "Started DB-derived gauge refresh loop (interval=%ss)",
-            settings.metrics_gauge_refresh_seconds,
-        )
 
-    logger.info("Startup complete")
-    try:
+        logger.info("Startup complete")
         yield
     finally:
         logger.info("Shutting down")
@@ -95,7 +99,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             db_gauges_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await db_gauges_task
-        app.state.mongo_client.close()
+        if app.state.mongo_client is not None:
+            app.state.mongo_client.close()
         if app.state.redis is not None:
             await app.state.redis.aclose()
         if app.state.rabbitmq is not None:

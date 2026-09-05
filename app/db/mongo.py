@@ -5,7 +5,7 @@ from app.core.config import Settings
 
 
 def create_mongo_client(settings: Settings) -> AsyncIOMotorClient:
-    return AsyncIOMotorClient(settings.mongodb_uri)
+    return AsyncIOMotorClient(settings.mongodb_uri, maxPoolSize=settings.mongodb_max_pool_size)
 
 
 def get_database(request: Request) -> AsyncIOMotorDatabase:
