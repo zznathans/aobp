@@ -97,6 +97,21 @@ async def test_item_build_chain_shows_raw_materials(
     assert '<div class="value">1</div>' in response.text  # 1 build step
 
 
+async def test_item_build_chain_qty_form_preserves_build_state(
+    client: TestClient, mongo_db: AsyncMongoMockClient
+) -> None:
+    await _seed_two_level_ship(mongo_db)
+
+    response = client.get(
+        f"/build/items/{SHIP_TYPE_ID}", params={"qty": 2, "build": str(COMPONENT_TYPE_ID)}
+    )
+
+    assert response.status_code == 200
+    assert '<form method="get" class="qty-form">' in response.text
+    assert '<input type="number" id="qty" name="qty" value="2" min="1">' in response.text
+    assert f'<input type="hidden" name="build" value="{COMPONENT_TYPE_ID}">' in response.text
+
+
 async def test_item_build_chain_scales_by_quantity(
     client: TestClient, mongo_db: AsyncMongoMockClient
 ) -> None:
@@ -105,7 +120,7 @@ async def test_item_build_chain_scales_by_quantity(
     response = client.get(f"/build/items/{SHIP_TYPE_ID}", params={"qty": 3})
 
     assert response.status_code == 200
-    assert "Building 3" in response.text
+    assert '<input type="number" id="qty" name="qty" value="3" min="1">' in response.text
     assert '<span class="item-value">300</span>' in response.text
 
 

@@ -155,7 +155,12 @@ async def item_build_chain(
           onerror="this.style.visibility='hidden'">
         <div>
           <div class="name">{item_name}</div>
-          <div class="meta">Building {qty_text} &times;</div>
+          <form method="get" class="qty-form">
+            <label for="qty">Desired output</label>
+            <input type="number" id="qty" name="qty" value="{qty_text}" min="1">
+            <input type="hidden" name="build" value="{escape(build)}">
+            <button type="submit" class="btn btn-secondary">Update</button>
+          </form>
         </div>
       </div>
     """
