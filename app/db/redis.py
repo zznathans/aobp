@@ -7,7 +7,11 @@ from app.core.config import Settings
 def create_redis_client(settings: Settings) -> Redis | None:
     if not settings.redis_enabled:
         return None
-    return Redis.from_url(settings.redis_url, decode_responses=True)
+    return Redis.from_url(
+        settings.redis_url,
+        decode_responses=True,
+        max_connections=settings.redis_max_connections,
+    )
 
 
 def get_redis(request: Request) -> Redis | None:

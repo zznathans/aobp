@@ -29,6 +29,7 @@ class Settings(BaseSettings):
 
     mongodb_uri: str = "mongodb://localhost:27017"
     mongodb_database: str = "eve-build"
+    mongodb_max_pool_size: int = 5
 
     sde_data_dir: str = "app/data/sde"
     run_migrations_on_startup: bool = True
@@ -39,6 +40,7 @@ class Settings(BaseSettings):
     redis_enabled: bool = False
     redis_url: str = "redis://localhost:6379/0"
     redis_cache_ttl_seconds: int = 60 * 60 * 24
+    redis_max_connections: int = 5
 
     rabbitmq_enabled: bool = False
     rabbitmq_url: str = "amqp://guest:guest@localhost:5672/"

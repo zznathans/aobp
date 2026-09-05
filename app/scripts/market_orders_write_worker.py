@@ -29,21 +29,22 @@ async def main() -> None:
         raise RuntimeError("RabbitMQ is disabled (RABBITMQ_ENABLED=false) - can't run this worker")
 
     mongo_client = create_mongo_client(settings)
-    db = mongo_client[settings.mongodb_database]
+    try:
+        db = mongo_client[settings.mongodb_database]
 
-    async with connection:
-        channel = await connection.channel()
-        await channel.set_qos(prefetch_count=settings.market_orders_write_prefetch)
-        _, results_queue = await declare_market_order_queues(channel)
+        async with connection:
+            channel = await connection.channel()
+            await channel.set_qos(prefetch_count=settings.market_orders_write_prefetch)
+            _, results_queue = await declare_market_order_queues(channel)
 
-        async with results_queue.iterator() as messages:
-            async for message in messages:
-                result = decode_orders_chunk(message.body)
-                count = await apply_orders_chunk(db, result)
-                logger.info("Inserted %s orders for region %s", count, result.region_id)
-                await message.ack()
-
-    mongo_client.close()
+            async with results_queue.iterator() as messages:
+                async for message in messages:
+                    result = decode_orders_chunk(message.body)
+                    count = await apply_orders_chunk(db, result)
+                    logger.info("Inserted %s orders for region %s", count, result.region_id)
+                    await message.ack()
+    finally:
+        mongo_client.close()
 
 
 if __name__ == "__main__":
