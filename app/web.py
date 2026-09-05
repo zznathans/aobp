@@ -134,6 +134,30 @@ def item_line_html(label: str, value: str) -> str:
     )
 
 
+def summary_stat_html(value: str, label: str) -> str:
+    """One tile inside a `.summary` grid (see card.css) - `value` is raw HTML, `label` is
+    escaped."""
+    return f"""
+      <div class="summary-stat">
+        <div class="value">{value}</div>
+        <div class="label">{escape(label)}</div>
+      </div>
+    """
+
+
+def section_html(title: str, cards_html: str) -> str:
+    """A titled `.section-box` of `.item-card`s (see card.css) - empty string if there are no
+    cards, so callers can drop it from the page without a stray empty box."""
+    if not cards_html:
+        return ""
+    return f"""
+      <div class="section-box">
+        <h2>{escape(title)}</h2>
+        <div class="item-grid">{cards_html}</div>
+      </div>
+    """
+
+
 def humanize_relative_time(target: datetime) -> str:
     seconds = (target - datetime.now(UTC)).total_seconds()
     if seconds <= 0:
@@ -183,6 +207,7 @@ def render_nav(character: CharacterDocument | None) -> str:
           <a href="/assets">Assets</a>
           <a href="/pi">Planets</a>
           <a href="/planetary">PI Schematics</a>
+          <a href="/plans">Plans</a>
         </div>
         <div class="nav-user">
           <img class="nav-avatar" src="{avatar_url}" alt="{character_name}">

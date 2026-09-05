@@ -12,33 +12,20 @@ from app.db.redis import get_redis
 from app.deps import get_current_character_optional
 from app.models.character import CharacterDocument
 from app.services import build_chain, sde
-from app.web import format_isk, item_icon_url, item_line_html, render_page
+from app.web import (
+    format_isk,
+    item_icon_url,
+    item_line_html,
+    render_page,
+    section_html,
+    summary_stat_html,
+)
 
 router = APIRouter(prefix="/build", tags=["build"])
 
 _CHOOSER_STYLE = ["/static/card.css", "/static/build.css"]
 _LIST_STYLE = ["/static/card.css", "/static/build.css"]
 _DETAIL_STYLE = ["/static/card.css", "/static/build-detail.css"]
-
-
-def _summary_stat(value: str, label: str) -> str:
-    return f"""
-      <div class="summary-stat">
-        <div class="value">{value}</div>
-        <div class="label">{escape(label)}</div>
-      </div>
-    """
-
-
-def _section(title: str, cards_html: str) -> str:
-    if not cards_html:
-        return ""
-    return f"""
-      <div class="section-box">
-        <h2>{escape(title)}</h2>
-        <div class="item-grid">{cards_html}</div>
-      </div>
-    """
 
 
 def _build_toggle_href(
@@ -54,6 +41,70 @@ def _build_toggle_href(
     if updated:
         query += f"&build={','.join(str(t) for t in sorted(updated))}"
     return f"/build/items/{target_type_id}?{query}"
+
+
+def render_build_resolution_sections(
+    resolution: build_chain.BuildResolution,
+    *,
+    type_id: int,
+    qty: int,
+    build_set: frozenset[int],
+    interactive: bool,
+) -> str:
+    """Renders the Materials + Build steps sections shared by the item build-chain page and a
+    saved plan's read-only overview page. When interactive, materials/steps get clickable
+    Build/Buy toggle links (see _build_toggle_href); when not, the same flags render as plain
+    spans - a saved plan doesn't have anywhere sensible to persist a toggle click back to."""
+
+    def _buy_flag(step_type_id: int) -> str:
+        if step_type_id == type_id:
+            return ""
+        if not interactive:
+            return '<span class="flag flag-buy-toggle">Buy</span>'
+        href = escape(_build_toggle_href(type_id, qty, build_set, step_type_id, adding=False))
+        return f'<a class="flag flag-buy-toggle" href="{href}">Buy</a>'
+
+    step_cards = "".join(f"""
+          <div class="item-card">
+            <div class="item-card-content">
+              <div class="item-title">
+                <img class="item-title-icon" src="{escape(item_icon_url(step.type_id))}" alt=""
+                  onerror="this.style.visibility='hidden'">
+                {escape(step.name)}
+                {_buy_flag(step.type_id)}
+              </div>
+              {item_line_html("Runs", str(step.runs))}
+              {item_line_html("Produces", str(step.quantity_needed))}
+            </div>
+          </div>
+        """ for step in resolution.steps)
+    steps_section = section_html("Build steps", step_cards)
+
+    def _material_flag(material: build_chain.RawMaterial) -> str:
+        if not material.is_buildable:
+            return '<span class="flag flag-buy">Bought</span>'
+        if not interactive:
+            return '<span class="flag flag-build">Build</span>'
+        href = escape(_build_toggle_href(type_id, qty, build_set, material.type_id, adding=True))
+        return f'<a class="flag flag-build" href="{href}">Build</a>'
+
+    raw_cards = "".join(f"""
+          <div class="item-card{' item-card-buildable' if material.is_buildable else ''}">
+            <div class="item-card-content">
+              <div class="item-title">
+                <img class="item-title-icon" src="{escape(item_icon_url(material.type_id))}"
+                  alt="" onerror="this.style.visibility='hidden'">
+                {escape(material.name)}
+                {_material_flag(material)}
+              </div>
+              {item_line_html("Quantity", str(material.quantity))}
+              {item_line_html("Est. cost", format_isk(material.quantity * material.unit_price))}
+            </div>
+          </div>
+        """ for material in resolution.raw_materials)
+    raw_section = section_html("Materials", raw_cards)
+
+    return f"{raw_section}\n{steps_section}"
 
 
 @router.get("", response_class=HTMLResponse)
@@ -175,60 +226,25 @@ async def item_build_chain(
 
     profit = resolution.output_value - resolution.raw_material_cost
     stats = (
-        _summary_stat(format_isk(resolution.raw_material_cost), "Raw material cost")
-        + _summary_stat(format_isk(resolution.output_value), "Output value")
-        + _summary_stat(format_isk(profit), "Profit")
-        + _summary_stat(str(len(resolution.steps)), "Build steps")
+        summary_stat_html(format_isk(resolution.raw_material_cost), "Raw material cost")
+        + summary_stat_html(format_isk(resolution.output_value), "Output value")
+        + summary_stat_html(format_isk(profit), "Profit")
+        + summary_stat_html(str(len(resolution.steps)), "Build steps")
     )
 
-    def _buy_flag(step_type_id: int) -> str:
-        if step_type_id == type_id:
-            return ""
-        href = escape(_build_toggle_href(type_id, qty, build_set, step_type_id, adding=False))
-        return f'<a class="flag flag-buy-toggle" href="{href}">Buy</a>'
+    sections = render_build_resolution_sections(
+        resolution, type_id=type_id, qty=qty, build_set=build_set, interactive=True
+    )
 
-    step_cards = "".join(f"""
-          <div class="item-card">
-            <div class="item-card-content">
-              <div class="item-title">
-                <img class="item-title-icon" src="{escape(item_icon_url(step.type_id))}" alt=""
-                  onerror="this.style.visibility='hidden'">
-                {escape(step.name)}
-                {_buy_flag(step.type_id)}
-              </div>
-              {item_line_html("Runs", str(step.runs))}
-              {item_line_html("Produces", str(step.quantity_needed))}
-            </div>
-          </div>
-        """ for step in resolution.steps)
-    steps_section = _section("Build steps", step_cards)
-
-    def _material_flag(material: build_chain.RawMaterial) -> str:
-        if not material.is_buildable:
-            return '<span class="flag flag-buy">Bought</span>'
-        href = escape(_build_toggle_href(type_id, qty, build_set, material.type_id, adding=True))
-        return f'<a class="flag flag-build" href="{href}">Build</a>'
-
-    raw_cards = "".join(f"""
-          <div class="item-card{' item-card-buildable' if material.is_buildable else ''}">
-            <div class="item-card-content">
-              <div class="item-title">
-                <img class="item-title-icon" src="{escape(item_icon_url(material.type_id))}"
-                  alt="" onerror="this.style.visibility='hidden'">
-                {escape(material.name)}
-                {_material_flag(material)}
-              </div>
-              {item_line_html("Quantity", str(material.quantity))}
-              {item_line_html("Est. cost", format_isk(material.quantity * material.unit_price))}
-            </div>
-          </div>
-        """ for material in resolution.raw_materials)
-    raw_section = _section("Materials", raw_cards)
+    add_to_plan_cta = ""
+    if character is not None:
+        add_to_plan_href = escape(f"/plans/create?type_id={type_id}&qty={qty}&build={build}")
+        add_to_plan_cta = f'<a class="btn btn-primary" href="{add_to_plan_href}">Add to Plan</a>'
 
     body = f"""<div class="page">{header}
       <div class="summary">{stats}</div>
-      {raw_section}
-      {steps_section}
+      {sections}
+      {add_to_plan_cta}
       <a class="btn btn-secondary back" href="/build/items">Back to search</a>
     </div>"""
     return HTMLResponse(render_page(page_title, body, _DETAIL_STYLE, character=character))
