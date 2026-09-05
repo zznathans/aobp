@@ -432,13 +432,18 @@ async def catalog_blueprint_detail(
         if product_name
         else ""
     )
+    tech_level_flag_class = "flag-build" if is_t2 or is_reaction else "flag-buy"
     header = f"""
       <div class="header">
         <img class="icon" src="{blueprint_icon_url}" alt="{blueprint_name}"
           onerror="this.style.visibility='hidden'">
         <div>
-          <div class="name">{blueprint_name}</div>
-          <div class="meta">{_tech_level_label(is_reaction, is_t2)} {produced_text}</div>
+          <div class="name">{blueprint_name}
+            <span class="flag {tech_level_flag_class}">
+              {escape(_tech_level_label(is_reaction, is_t2))}
+            </span>
+          </div>
+          <div class="meta">{produced_text}</div>
         </div>
       </div>
     """
@@ -461,8 +466,15 @@ async def catalog_blueprint_detail(
         """ for material in materials)
     materials_section = _section("Materials", materials_cards)
 
+    build_cta = (
+        f'<a class="btn btn-primary" href="/build/items/{product_type_id}">Build this</a>'
+        if product_type_id is not None
+        else ""
+    )
+
     body = f"""<div class="page">{header}
       <div class="summary">{price_figures}</div>
+      {build_cta}
       {materials_section}
       <a class="btn btn-secondary back" href="/blueprints/catalog">Back to search</a>
     </div>"""

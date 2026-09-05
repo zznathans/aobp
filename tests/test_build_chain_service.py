@@ -82,7 +82,9 @@ async def test_resolve_build_chain_expands_buildable_sub_components(
         ]
     )
 
-    resolution = await resolve_build_chain(mongo_db, None, test_settings, SHIP_TYPE_ID, 1)
+    resolution = await resolve_build_chain(
+        mongo_db, None, test_settings, SHIP_TYPE_ID, 1, frozenset({COMPONENT_TYPE_ID})
+    )
 
     assert resolution.is_buildable is True
     # Ship + Component = 2 build steps; the component is listed before the ship that needs it.
@@ -96,6 +98,73 @@ async def test_resolve_build_chain_expands_buildable_sub_components(
     # 2 component runs * 10 Tritanium/run = 20; * 5 Pyerite/run = 10.
     assert raw_by_type_id[TRITANIUM_TYPE_ID] == 20
     assert raw_by_type_id[PYERITE_TYPE_ID] == 10
+
+
+async def test_resolve_build_chain_defaults_to_collapsed_first_level(
+    mongo_db: AsyncMongoMockClient, test_settings: Settings
+) -> None:
+    await _seed_names(
+        mongo_db,
+        [
+            {"_id": SHIP_TYPE_ID, "name": "Test Ship", "published": True},
+            {"_id": COMPONENT_TYPE_ID, "name": "Test Component", "published": True},
+            {"_id": TRITANIUM_TYPE_ID, "name": "Tritanium", "published": True},
+        ],
+    )
+    await mongo_db.sde_blueprints.insert_many(
+        [
+            {
+                "_id": SHIP_BLUEPRINT_TYPE_ID,
+                "product_type_id": SHIP_TYPE_ID,
+                "product_quantity": 1,
+                "materials": [{"type_id": COMPONENT_TYPE_ID, "quantity": 2}],
+                "activity_id": 1,
+            },
+            {
+                "_id": COMPONENT_BLUEPRINT_TYPE_ID,
+                "product_type_id": COMPONENT_TYPE_ID,
+                "product_quantity": 1,
+                "materials": [{"type_id": TRITANIUM_TYPE_ID, "quantity": 10}],
+                "activity_id": 1,
+            },
+        ]
+    )
+
+    # No build_set passed -> only the ship itself is expanded; the buildable component is
+    # left as a leaf the caller can still choose to toggle to "build".
+    resolution = await resolve_build_chain(mongo_db, None, test_settings, SHIP_TYPE_ID, 1)
+
+    assert [step.type_id for step in resolution.steps] == [SHIP_TYPE_ID]
+    assert len(resolution.raw_materials) == 1
+    component_material = resolution.raw_materials[0]
+    assert component_material.type_id == COMPONENT_TYPE_ID
+    assert component_material.quantity == 2
+    assert component_material.is_buildable is True
+
+
+async def test_resolve_build_chain_marks_non_buildable_leaf(
+    mongo_db: AsyncMongoMockClient, test_settings: Settings
+) -> None:
+    await _seed_names(
+        mongo_db,
+        [
+            {"_id": SHIP_TYPE_ID, "name": "Test Ship", "published": True},
+            {"_id": TRITANIUM_TYPE_ID, "name": "Tritanium", "published": True},
+        ],
+    )
+    await mongo_db.sde_blueprints.insert_one(
+        {
+            "_id": SHIP_BLUEPRINT_TYPE_ID,
+            "product_type_id": SHIP_TYPE_ID,
+            "product_quantity": 1,
+            "materials": [{"type_id": TRITANIUM_TYPE_ID, "quantity": 100}],
+            "activity_id": 1,
+        }
+    )
+
+    resolution = await resolve_build_chain(mongo_db, None, test_settings, SHIP_TYPE_ID, 1)
+
+    assert resolution.raw_materials[0].is_buildable is False
 
 
 async def test_resolve_build_chain_merges_shared_component_across_branches(
@@ -141,7 +210,14 @@ async def test_resolve_build_chain_merges_shared_component_across_branches(
         ]
     )
 
-    resolution = await resolve_build_chain(mongo_db, None, test_settings, SHIP_TYPE_ID, 1)
+    resolution = await resolve_build_chain(
+        mongo_db,
+        None,
+        test_settings,
+        SHIP_TYPE_ID,
+        1,
+        frozenset({MODULE_TYPE_ID, COMPONENT_TYPE_ID}),
+    )
 
     # Shared component appears as exactly one step, not two.
     component_steps = [step for step in resolution.steps if step.type_id == COMPONENT_TYPE_ID]
