@@ -51,5 +51,13 @@ jobs:
           push: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Registry cache instead of type=gha: gha-backend cache entries are immutable, so
+          # buildx re-uploads the *entire* cache blob set on every single build regardless of
+          # whether anything changed (a fixed ~30s tax we measured on an otherwise fully
+          # cache-hit build), and gha cache is scoped per-branch/base-branch - since this
+          # workflow only runs on pull_request (never a push to main), no branch ever seeds a
+          # shared base cache, so every new PR branch starts cold. A registry stores cache
+          # layers as content-addressed blobs, so unchanged layers are skipped on push (real
+          # incremental caching) and every branch shares the one `buildcache` tag.
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: ${{ github.event.pull_request.head.repo.full_name == github.repository && format('type=registry,ref={0}/{1}:buildcache,mode=max', env.REGISTRY, env.IMAGE_NAME) || '' }}
