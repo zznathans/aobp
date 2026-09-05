@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
+import httpx
 from fastapi import Depends, HTTPException, Request, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -38,7 +39,15 @@ async def get_current_character_optional(
     updates: dict[str, object] = {}
 
     if document.access_token_expires_at <= _utcnow_naive():
-        token = await eve_sso.refresh_access_token(settings, refresh_token=document.refresh_token)
+        try:
+            token = await eve_sso.refresh_access_token(
+                settings, refresh_token=document.refresh_token
+            )
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code in (400, 401):
+                request.session.pop("character_id", None)
+                return None
+            raise
         document.access_token = token.access_token
         document.refresh_token = token.refresh_token
         document.access_token_expires_at = _expires_at(token.expires_in)
@@ -51,15 +60,29 @@ async def get_current_character_optional(
         and document.corp_access_token_expires_at is not None
         and document.corp_access_token_expires_at <= _utcnow_naive()
     ):
-        corp_token = await eve_sso.refresh_access_token(
-            settings, refresh_token=document.corp_refresh_token
-        )
-        document.corp_access_token = corp_token.access_token
-        document.corp_refresh_token = corp_token.refresh_token
-        document.corp_access_token_expires_at = _expires_at(corp_token.expires_in)
-        updates["corp_access_token"] = document.corp_access_token
-        updates["corp_refresh_token"] = document.corp_refresh_token
-        updates["corp_access_token_expires_at"] = document.corp_access_token_expires_at
+        try:
+            corp_token = await eve_sso.refresh_access_token(
+                settings, refresh_token=document.corp_refresh_token
+            )
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code in (400, 401):
+                document.corp_scopes = None
+                document.corp_access_token = None
+                document.corp_refresh_token = None
+                document.corp_access_token_expires_at = None
+                updates["corp_scopes"] = None
+                updates["corp_access_token"] = None
+                updates["corp_refresh_token"] = None
+                updates["corp_access_token_expires_at"] = None
+            else:
+                raise
+        else:
+            document.corp_access_token = corp_token.access_token
+            document.corp_refresh_token = corp_token.refresh_token
+            document.corp_access_token_expires_at = _expires_at(corp_token.expires_in)
+            updates["corp_access_token"] = document.corp_access_token
+            updates["corp_refresh_token"] = document.corp_refresh_token
+            updates["corp_access_token_expires_at"] = document.corp_access_token_expires_at
 
     if updates:
         document.updated_at = _utcnow_naive()

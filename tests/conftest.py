@@ -87,6 +87,7 @@ def client(
     # REDIS_ENABLED=true in a developer's .env, every test would silently read/write the real
     # Redis instance).
     monkeypatch.setenv("RUN_MIGRATIONS_ON_STARTUP", "false")
+    monkeypatch.setenv("SYNC_INDEXES_ON_STARTUP", "false")
     monkeypatch.setenv("REDIS_ENABLED", "false")
     monkeypatch.setenv("RABBITMQ_ENABLED", "false")
     get_settings.cache_clear()

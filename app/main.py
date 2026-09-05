@@ -11,6 +11,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import get_settings
+from app.db.index_sync import sync_indexes
 from app.db.mongo import create_mongo_client
 from app.db.rabbitmq import create_rabbitmq_connection
 from app.db.redis import create_redis_client
@@ -62,6 +63,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("Database migrations complete")
     else:
         logger.info("Skipping database migrations (run_migrations_on_startup=False)")
+
+    if settings.sync_indexes_on_startup:
+        logger.info("Syncing MongoDB indexes")
+        await sync_indexes(
+            app.state.mongo_client[settings.mongodb_database], settings.mongo_indexes_dir
+        )
+        logger.info("MongoDB index sync complete")
+    else:
+        logger.info("Skipping MongoDB index sync (sync_indexes_on_startup=False)")
 
     db_gauges_task: asyncio.Task[None] | None = None
     if settings.metrics_enabled and settings.metrics_db_gauges_enabled:
